@@ -1,0 +1,416 @@
+{
+  "query": {
+    "address": "14 Roland Gardens, South Kensington, London",
+    "postcode": "SW7 3PF"
+  },
+  "source": "UK Land Registry (Official Government Data)",
+  "target_property_transactions": [],
+  "all_area_transactions": [
+    {
+      "number": "23A",
+      "flat": "LOWER GROUND FLOOR FLAT",
+      "price": "\u00a3215,000",
+      "date": "Thu, 29 Aug 1996",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23A",
+      "flat": "LOWER GROUND FLOOR FLAT",
+      "price": "\u00a3257,500",
+      "date": "Thu, 11 Sep 1997",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23A",
+      "flat": "LOWER GROUND FLOOR FLAT",
+      "price": "\u00a3436,750",
+      "date": "Wed, 08 Sep 2004",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "33",
+      "flat": null,
+      "price": "\u00a35,550,000",
+      "date": "Fri, 01 Nov 1996",
+      "tenure": "Freehold",
+      "property_type": "semi-detached"
+    },
+    {
+      "number": "33",
+      "flat": null,
+      "price": "\u00a31,000,001",
+      "date": "Wed, 29 Dec 2021",
+      "tenure": "Leasehold",
+      "property_type": "other"
+    },
+    {
+      "number": "31",
+      "flat": "FLAT 4",
+      "price": "\u00a3335,000",
+      "date": "Fri, 23 Aug 1996",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "31",
+      "flat": "FLAT 4",
+      "price": "\u00a3835,000",
+      "date": "Tue, 17 Sep 2002",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "FLAT 1",
+      "price": "\u00a3146,500",
+      "date": "Mon, 02 Dec 1996",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "FLAT 1",
+      "price": "\u00a3225,000",
+      "date": "Tue, 16 Dec 1997",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "FLAT 1",
+      "price": "\u00a3110,000",
+      "date": "Wed, 22 Mar 1995",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": null,
+      "price": "\u00a340,000",
+      "date": "Wed, 31 Jul 1996",
+      "tenure": "Freehold",
+      "property_type": "terraced"
+    },
+    {
+      "number": "23",
+      "flat": "THE GROUND FLOOR FLAT",
+      "price": "\u00a3320,000",
+      "date": "Wed, 15 May 1996",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "25",
+      "flat": "FLAT 2",
+      "price": "\u00a3342,500",
+      "date": "Mon, 12 Feb 1996",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "FLAT 3",
+      "price": "\u00a3335,000",
+      "date": "Fri, 18 Apr 1997",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "25",
+      "flat": "FLAT 4",
+      "price": "\u00a3440,000",
+      "date": "Tue, 01 Sep 1998",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "25",
+      "flat": "FLAT 4",
+      "price": "\u00a3362,500",
+      "date": "Thu, 23 Nov 1995",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "29",
+      "flat": "BASEMENT FLAT",
+      "price": "\u00a3275,000",
+      "date": "Wed, 06 May 1998",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "29",
+      "flat": "BASEMENT FLAT",
+      "price": "\u00a3787,500",
+      "date": "Thu, 16 Dec 2004",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "31",
+      "flat": "FLAT 3",
+      "price": "\u00a3312,000",
+      "date": "Tue, 21 Dec 1999",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "31",
+      "flat": "FLAT 1",
+      "price": "\u00a3685,000",
+      "date": "Tue, 30 Nov 1999",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "THE THIRD FLOOR FLAT AT",
+      "price": "\u00a3230,000",
+      "date": "Fri, 17 Mar 2000",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "THE GROUND FLOOR FLAT",
+      "price": "\u00a3675,000",
+      "date": "Thu, 27 Apr 2000",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "THE GROUND FLOOR FLAT",
+      "price": "\u00a31,450,000",
+      "date": "Thu, 30 Nov 2006",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "THE GROUND FLOOR FLAT",
+      "price": "\u00a31,800,000",
+      "date": "Mon, 01 Feb 2010",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "THE GROUND FLOOR FLAT",
+      "price": "\u00a32,000,000",
+      "date": "Tue, 21 Jun 2022",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "27",
+      "flat": "BASEMENT FLAT",
+      "price": "\u00a3605,000",
+      "date": "Fri, 08 Sep 2000",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "27",
+      "flat": "BASEMENT FLAT",
+      "price": "\u00a31,460,000",
+      "date": "Mon, 03 Aug 2009",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "27",
+      "flat": "BASEMENT FLAT",
+      "price": "\u00a32,350,000",
+      "date": "Mon, 09 Jul 2012",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "27",
+      "flat": "BASEMENT FLAT",
+      "price": "\u00a32,400,000",
+      "date": "Mon, 15 Aug 2022",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "FLAT 3",
+      "price": "\u00a3560,000",
+      "date": "Thu, 28 Dec 2000",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "FLAT 3",
+      "price": "\u00a31,391,800",
+      "date": "Thu, 26 Jul 2012",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "27",
+      "flat": "BASEMENT FLAT",
+      "price": "\u00a3785,000",
+      "date": "Fri, 05 Apr 2002",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "27",
+      "flat": "BASEMENT FLAT",
+      "price": "\u00a31,125,000",
+      "date": "Mon, 31 Jul 2006",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "31",
+      "flat": "FLAT 1",
+      "price": "\u00a3680,000",
+      "date": "Fri, 02 May 2003",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "31",
+      "flat": "FLAT 1",
+      "price": "\u00a31,650,000",
+      "date": "Tue, 08 Jan 2008",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "25",
+      "flat": "FLAT 3",
+      "price": "\u00a3760,000",
+      "date": "Tue, 08 Feb 2005",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "25",
+      "flat": "FLAT 3",
+      "price": "\u00a3370,000",
+      "date": "Mon, 23 Oct 1995",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "THE THIRD FLOOR FLAT AT",
+      "price": "\u00a3400,000",
+      "date": "Tue, 11 Dec 2007",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "31",
+      "flat": "FLAT 5",
+      "price": "\u00a3360,000",
+      "date": "Thu, 29 Apr 2010",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "25",
+      "flat": "FLAT 3",
+      "price": "\u00a31,465,000",
+      "date": "Fri, 25 Mar 2011",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "25",
+      "flat": "FLAT 3",
+      "price": "\u00a32,100,000",
+      "date": "Tue, 17 Nov 2015",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "FLAT 5",
+      "price": "\u00a3655,000",
+      "date": "Wed, 16 Nov 2011",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "FLAT 5",
+      "price": "\u00a3715,000",
+      "date": "Mon, 25 Jun 2018",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "23",
+      "flat": "FLAT 5",
+      "price": "\u00a3715,000",
+      "date": "Wed, 27 Aug 2025",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "31",
+      "flat": "FLAT 4",
+      "price": "\u00a31,925,000",
+      "date": "Mon, 12 Nov 2012",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "31",
+      "flat": "FLAT 4",
+      "price": "\u00a31,900,000",
+      "date": "Mon, 04 Feb 2013",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "31",
+      "flat": "FLAT 4",
+      "price": "\u00a32,550,000",
+      "date": "Mon, 09 Aug 2021",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "29",
+      "flat": "FLAT 2",
+      "price": "\u00a31,999,999",
+      "date": "Mon, 16 Jul 2012",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "29",
+      "flat": "FLAT 2",
+      "price": "\u00a33,300,000",
+      "date": "Fri, 28 May 2021",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    },
+    {
+      "number": "25",
+      "flat": "FLAT 5",
+      "price": "\u00a31,310,000",
+      "date": "Wed, 01 Feb 2012",
+      "tenure": "Leasehold",
+      "property_type": "flat-maisonette"
+    }
+  ],
+  "statistics": {
+    "average_price": 1053941,
+    "max_price": 5550000,
+    "min_price": 40000,
+    "transaction_count": 50
+  }
+}
