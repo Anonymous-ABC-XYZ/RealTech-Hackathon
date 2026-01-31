@@ -18,23 +18,26 @@ Inspired by Stripe's clean, professional aesthetic with a custom color palette:
 ```
 RealTech-Hackathon/
 ├── backend/
-│   ├── app.py              # Flask API server
-│   └── requirements.txt    # Python dependencies
+│   ├── app.py                  # Flask API server
+│   ├── requirements.txt        # Python dependencies
+│   ├── run_scraper.py          # CLI tool for scraping
+│   └── scraper/
+│       ├── land_registry_scraper.py   # UK Land Registry API
+│       ├── rightmove_scraper.py       # Rightmove scraper
+│       ├── zoopla_scraper.py          # Zoopla scraper
+│       └── multi_source_scraper.py    # Aggregates sources
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── layout.tsx      # Root layout
-│   │   │   ├── page.tsx        # Home page
-│   │   │   └── globals.css     # Global styles
-│   │   ├── components/
-│   │   │   ├── Header.tsx      # Navigation header
-│   │   │   ├── MapSection.tsx  # Apple Maps integration
-│   │   │   └── PropertyPanel.tsx # Property data display
-│   │   └── types/
-│   │       └── index.ts        # TypeScript types
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx
+│   │   │   └── globals.css
+│   │   └── components/
+│   │       ├── Header.tsx
+│   │       ├── MapSection.tsx
+│   │       └── PropertyPanel.tsx
 │   ├── next.config.js
 │   ├── tailwind.config.js
-│   ├── tsconfig.json
 │   └── package.json
 └── README.md
 ```
@@ -46,7 +49,6 @@ RealTech-Hackathon/
 - Node.js 18+ and npm
 - Python 3.9+
 - pip
-- Apple Developer account (for MapKit JS token)
 
 ### Backend Setup
 
@@ -65,100 +67,137 @@ The backend will run on `http://localhost:5000`
 ```bash
 cd frontend
 npm install
-```
-
-Create a `.env.local` file with your MapKit JS token:
-
-```env
-NEXT_PUBLIC_MAPKIT_TOKEN=your_mapkit_js_token_here
-NEXT_PUBLIC_API_URL=http://localhost:5000
-```
-
-Start the development server:
-
-```bash
 npm run dev
 ```
 
 The frontend will run on `http://localhost:3000`
 
-## 🗺️ Apple MapKit JS Setup
+---
 
-1. Go to [Apple Developer Portal](https://developer.apple.com)
-2. Navigate to Certificates, Identifiers & Profiles
-3. Create a new Maps ID
-4. Generate a MapKit JS key
-5. Create a JWT token for authentication
-6. Add the token to your `.env.local` file
+## 🏠 Land Registry Data Scraper
 
-## 🐍 Python Backend Structure
+Access official UK property transaction data from HM Land Registry.
 
-The Flask backend is designed to be extended with your prediction model:
+### Quick Start
 
 ```python
-# backend/app.py
+from scraper.land_registry_scraper import LandRegistryScraper, search_land_registry
 
-def predict_property_price(address: str, lat: float, lng: float) -> dict:
-    """
-    Main prediction function - Implement your model here
-    
-    Args:
-        address: Full address string
-        lat: Latitude coordinate
-        lng: Longitude coordinate
-    
-    Returns:
-        Dictionary containing prediction results
-    """
-    # TODO: Add your ML model here
-    pass
+# Create scraper
+scraper = LandRegistryScraper()
 
-def get_area_data(lat: float, lng: float) -> dict:
-    """
-    Fetch area data that influences property prices
-    
-    TODO: Implement data fetching from external APIs
-    """
-    pass
+# Search by street (most reliable)
+result = scraper.search_by_street("ROLAND GARDENS", "LONDON")
+
+# Search specific address
+result = scraper.search_by_address("14 Roland Gardens", town="LONDON")
+
+# Convenience function
+result = search_land_registry("BAKER STREET", town="LONDON")
+
+# Use results
+if result['success']:
+    for t in result['transactions'][:5]:
+        print(f"{t['address']}: £{t['price']:,} ({t['date']})")
+    print(f"Average: £{result['statistics']['average_price']:,}")
 ```
+
+### Response Format
+
+```json
+{
+  "success": true,
+  "source": "land_registry",
+  "transactions": [
+    {
+      "price": 1250000,
+      "date": "15 March 2023",
+      "property_type": "Flat-maisonette",
+      "tenure": "Leasehold",
+      "new_build": false,
+      "address": "FLAT 3, 14, ROLAND GARDENS, LONDON, SW7 3PH",
+      "paon": "14",
+      "street": "ROLAND GARDENS",
+      "town": "LONDON",
+      "postcode": "SW7 3PH"
+    }
+  ],
+  "statistics": {
+    "count": 50,
+    "average_price": 602590,
+    "min_price": 22000,
+    "max_price": 5550000,
+    "median_price": 310000
+  }
+}
+```
+
+### API Methods
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `search_by_street(street, town)` | Search by street | `search_by_street("BAKER STREET", "LONDON")` |
+| `search_by_address(address, town)` | Search address | `search_by_address("14 Roland Gardens", town="LONDON")` |
+| `search_by_postcode(postcode)` | Search postcode | `search_by_postcode("SW7 3RP")` |
+| `search_land_registry(query, town)` | Auto-detect type | `search_land_registry("OXFORD STREET", town="LONDON")` |
+
+### Command Line Usage
+
+```bash
+cd backend
+
+# Default test (Roland Gardens, London)
+python run_scraper.py
+
+# Search any street
+python run_scraper.py "OXFORD STREET" "LONDON"
+
+# Search specific address
+python run_scraper.py "10 Downing Street" address "LONDON"
+```
+
+### Data Coverage
+
+| Region | Coverage |
+|--------|----------|
+| England | ✅ Full (from 1995) |
+| Wales | ✅ Full (from 1995) |
+| Scotland | ❌ Use Registers of Scotland |
+| N. Ireland | ❌ Use Land & Property Services |
+
+---
+
+## 📄 Flask API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Health check |
+| `/api/predict` | POST | Price prediction (placeholder) |
+| `/api/area-data` | GET | Area data for coordinates |
+
+---
 
 ## 📱 Features
 
 - **Interactive Apple Maps**: Click to select any location
 - **Address Search**: Search for properties by address
-- **AI Price Prediction**: Get instant price predictions (placeholder)
-- **Area Insights**: View demographics, amenities, transport, safety, and market trends
-- **Mobile Responsive**: Fully responsive design for all devices
-- **Stripe-inspired UI**: Clean, modern, and professional design
+- **AI Price Prediction**: Get instant price predictions
+- **Area Insights**: Demographics, amenities, transport data
+- **Mobile Responsive**: Works on all devices
+- **Stripe-inspired UI**: Clean, modern design
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Next.js 14** - React framework with App Router
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Utility-first styling
-- **Apple MapKit JS** - Maps integration
-- **Lucide React** - Icons
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- Apple MapKit JS
 
 ### Backend
-- **Flask** - Python web framework
-- **Flask-CORS** - Cross-origin resource sharing
-
-## 📄 API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Health check |
-| `/api/predict` | POST | Get price prediction for a location |
-| `/api/area-data` | GET | Get area data for coordinates |
-
-## 🎯 Next Steps
-
-1. Implement the ML prediction model in `backend/app.py`
-2. Add external API integrations for real area data
-3. Set up production deployment
-4. Add user authentication (optional)
-5. Add property comparison feature (optional)
+- Flask
+- Flask-CORS
+- Requests
 
 ## 📝 License
 
