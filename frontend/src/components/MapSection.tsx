@@ -1,189 +1,269 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { MapPin, Search } from 'lucide-react';
+import { MapPin, Search, Plus, X, BarChart3, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
-interface MapSectionProps {
-  onLocationSelect: (location: { address: string; lat: number; lng: number }) => void;
+export interface SavedLocation {
+  id: string;
+  address: string;
+  lat: number;
+  lng: number;
+  color: string;
 }
 
-export default function MapSection({ onLocationSelect }: MapSectionProps) {
-  const mapRef = useRef<HTMLDivElement>(null);
+interface MapSectionProps {
+  onLocationSelect: (location: { address: string; lat: number; lng: number }) => void;
+  onCompareLocations?: (locations: SavedLocation[]) => void;
+  savedLocations?: SavedLocation[];
+  onAddLocation?: (location: SavedLocation) => void;
+  onRemoveLocation?: (id: string) => void;
+  onClearLocations?: () => void;
+}
+
+const PIN_COLORS = ['#0f172a', '#dc2626', '#16a34a', '#2563eb', '#9333ea', '#ea580c', '#0891b2', '#be185d'];
+
+export default function MapSection({ 
+  onLocationSelect,
+  onCompareLocations,
+  savedLocations = [],
+  onAddLocation,
+  onRemoveLocation,
+  onClearLocations,
+}: MapSectionProps) {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [selectedPin, setSelectedPin] = useState<{ lat: number; lng: number } | null>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const annotationRef = useRef<any>(null);
+  const [currentSelection, setCurrentSelection] = useState<{ lat: number; lng: number; address?: string } | null>(null);
+  const mapRef = useRef<any>(null);
+  const currentMarkerRef = useRef<any>(null);
+  const savedMarkersRef = useRef<Map<string, any>>(new Map());
+  const LRef = useRef<any>(null);
 
-  // Initialize MapKit
+  // Initialize Leaflet map
   useEffect(() => {
-    const initializeMap = async () => {
-      // Check if MapKit is already loaded
-      if (typeof window !== 'undefined' && (window as any).mapkit) {
-        setupMap();
-        return;
-      }
+    const initMap = async () => {
+      if (typeof window === 'undefined') return;
+      
+      // Dynamically import Leaflet
+      const L = await import('leaflet');
+      LRef.current = L.default;
+      
+      // Import Leaflet CSS
+      await import('leaflet/dist/leaflet.css');
 
-      // Load MapKit JS
-      const script = document.createElement('script');
-      script.src = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js';
-      script.crossOrigin = 'anonymous';
-      script.async = true;
-      
-      script.onload = () => {
-        setupMap();
-      };
-      
-      document.head.appendChild(script);
-    };
-
-    const setupMap = () => {
-      const mapkit = (window as any).mapkit;
-      
-      const token = process.env.NEXT_PUBLIC_MAPKIT_TOKEN;
-      
-      if (!mapkit.maps || mapkit.maps.length === 0) {
-        mapkit.init({
-          authorizationCallback: (done: (token: string) => void) => {
-            if (token) {
-              done(token);
-            } else {
-              console.warn('MapKit token not found. Map functionality may be limited.');
-              done('');
-            }
-          },
-        });
-      }
-
-      if (mapRef.current && !mapInstanceRef.current) {
-        const map = new mapkit.Map(mapRef.current, {
-          center: new mapkit.Coordinate(51.5074, -0.1278), // London default
-          mapType: mapkit.Map.MapTypes.Standard,
-          showsCompass: mapkit.FeatureVisibility.Hidden,
-          showsZoomControl: true,
-          showsMapTypeControl: false,
-          isRotationEnabled: false,
-          colorScheme: mapkit.Map.ColorSchemes.Light,
+      if (mapContainerRef.current && !mapRef.current) {
+        // Create map centered on London
+        const map = L.default.map(mapContainerRef.current, {
+          center: [51.5074, -0.1278],
+          zoom: 13,
+          zoomControl: true,
         });
 
-        mapInstanceRef.current = map;
+        // Add OpenStreetMap tiles
+        L.default.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19,
+        }).addTo(map);
+
+        // Handle map clicks
+        map.on('click', (e: any) => {
+          const { lat, lng } = e.latlng;
+          handleMapClick(lat, lng);
+        });
+
+        mapRef.current = map;
         setMapLoaded(true);
-
-        map.addEventListener('single-tap', handleMapClick);
       }
     };
 
-    initializeMap();
+    initMap();
 
     return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.destroy();
-        mapInstanceRef.current = null;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
       }
     };
   }, []);
 
-  const handleMapClick = useCallback(async (event: any) => {
-    const mapkit = (window as any).mapkit;
-    const map = mapInstanceRef.current;
+  // Create custom marker icon
+  const createMarkerIcon = useCallback((color: string) => {
+    const L = LRef.current;
+    if (!L) return null;
     
-    if (!map || !mapkit) return;
+    return L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="
+        background-color: ${color};
+        width: 24px;
+        height: 24px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      "></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+    });
+  }, []);
 
-    const point = event.pointOnPage;
-    const coordinate = map.convertPointOnPageToCoordinate(point);
-    
-    const lat = coordinate.latitude;
-    const lng = coordinate.longitude;
+  // Handle map click
+  const handleMapClick = useCallback(async (lat: number, lng: number) => {
+    const L = LRef.current;
+    const map = mapRef.current;
+    if (!L || !map) return;
 
-    setSelectedPin({ lat, lng });
-
-    if (annotationRef.current) {
-      map.removeAnnotation(annotationRef.current);
+    // Remove current marker
+    if (currentMarkerRef.current) {
+      map.removeLayer(currentMarkerRef.current);
     }
 
-    // Modern pin color - using a deep primary color instead of teal
-    const annotation = new mapkit.MarkerAnnotation(coordinate, {
-      color: '#0f172a', // slate-900 (primary)
-      title: 'Selected Location',
-      glyphColor: '#ffffff',
-    });
-    
-    annotationRef.current = annotation;
-    map.addAnnotation(annotation);
+    // Create new marker
+    const color = PIN_COLORS[savedLocations.length % PIN_COLORS.length];
+    const icon = createMarkerIcon(color);
+    const marker = L.marker([lat, lng], { icon }).addTo(map);
+    currentMarkerRef.current = marker;
 
-    const geocoder = new mapkit.Geocoder();
-    geocoder.reverseLookup(coordinate, (error: any, data: any) => {
-      if (error) {
-        console.error('Geocoding error:', error);
-        onLocationSelect({
-          address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-          lat,
-          lng,
-        });
-        return;
-      }
+    // Reverse geocode to get address
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`
+      );
+      const data = await response.json();
+      const address = data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      
+      marker.bindPopup(address).openPopup();
+      setCurrentSelection({ lat, lng, address });
+    } catch (error) {
+      const address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      marker.bindPopup(address).openPopup();
+      setCurrentSelection({ lat, lng, address });
+    }
+  }, [savedLocations.length, createMarkerIcon]);
 
-      if (data.results && data.results.length > 0) {
-        const place = data.results[0];
-        const address = place.formattedAddress || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-        
-        if (annotationRef.current) {
-          annotationRef.current.title = address;
-        }
-        
-        onLocationSelect({ address, lat, lng });
-      }
-    });
-  }, [onLocationSelect]);
-
+  // Handle search
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!searchQuery.trim() || !mapInstanceRef.current) return;
+    if (!searchQuery.trim() || !mapRef.current) return;
 
-    const mapkit = (window as any).mapkit;
-    const geocoder = new mapkit.Geocoder();
-
-    geocoder.lookup(searchQuery, (error: any, data: any) => {
-      if (error) {
-        console.error('Search error:', error);
-        return;
+    try {
+      // Add London bias to search
+      const query = searchQuery.toLowerCase().includes('london') 
+        ? searchQuery 
+        : `${searchQuery}, London, UK`;
+      
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const { lat, lon, display_name } = data[0];
+        const latitude = parseFloat(lat);
+        const longitude = parseFloat(lon);
+        
+        mapRef.current.setView([latitude, longitude], 15);
+        handleMapClick(latitude, longitude);
       }
+    } catch (error) {
+      console.error('Search error:', error);
+    }
+  };
 
-      if (data.results && data.results.length > 0) {
-        const place = data.results[0];
-        const coordinate = place.coordinate;
-        
-        mapInstanceRef.current.setCenterAnimated(coordinate);
-        
-        const lat = coordinate.latitude;
-        const lng = coordinate.longitude;
-        
-        setSelectedPin({ lat, lng });
+  // Sync saved locations with markers
+  useEffect(() => {
+    const L = LRef.current;
+    const map = mapRef.current;
+    if (!L || !map || !mapLoaded) return;
 
-        if (annotationRef.current) {
-          mapInstanceRef.current.removeAnnotation(annotationRef.current);
-        }
-
-        const annotation = new mapkit.MarkerAnnotation(coordinate, {
-          color: '#0f172a',
-          title: place.formattedAddress || searchQuery,
-          glyphColor: '#ffffff',
-        });
-        
-        annotationRef.current = annotation;
-        mapInstanceRef.current.addAnnotation(annotation);
-
-        onLocationSelect({
-          address: place.formattedAddress || searchQuery,
-          lat,
-          lng,
-        });
+    // Remove markers for deleted locations
+    savedMarkersRef.current.forEach((marker, id) => {
+      if (!savedLocations.find(loc => loc.id === id)) {
+        map.removeLayer(marker);
+        savedMarkersRef.current.delete(id);
       }
     });
+
+    // Add markers for new locations
+    savedLocations.forEach((location) => {
+      if (!savedMarkersRef.current.has(location.id)) {
+        const icon = createMarkerIcon(location.color);
+        const marker = L.marker([location.lat, location.lng], { icon })
+          .addTo(map)
+          .bindPopup(location.address);
+        savedMarkersRef.current.set(location.id, marker);
+      }
+    });
+  }, [savedLocations, mapLoaded, createMarkerIcon]);
+
+  // Add current selection to saved locations
+  const handleAddLocation = () => {
+    if (!currentSelection || !onAddLocation) return;
+    
+    const newLocation: SavedLocation = {
+      id: `loc-${Date.now()}`,
+      address: currentSelection.address || `${currentSelection.lat.toFixed(6)}, ${currentSelection.lng.toFixed(6)}`,
+      lat: currentSelection.lat,
+      lng: currentSelection.lng,
+      color: PIN_COLORS[savedLocations.length % PIN_COLORS.length],
+    };
+
+    // Move current marker to saved
+    if (currentMarkerRef.current) {
+      savedMarkersRef.current.set(newLocation.id, currentMarkerRef.current);
+      currentMarkerRef.current = null;
+    }
+
+    onAddLocation(newLocation);
+    setCurrentSelection(null);
+    setSearchQuery('');
+  };
+
+  // Analyze single location
+  const handleAnalyzeSingle = () => {
+    if (!currentSelection) return;
+    onLocationSelect({
+      address: currentSelection.address || `${currentSelection.lat.toFixed(6)}, ${currentSelection.lng.toFixed(6)}`,
+      lat: currentSelection.lat,
+      lng: currentSelection.lng,
+    });
+  };
+
+  // Compare all saved locations
+  const handleCompare = () => {
+    if (onCompareLocations && savedLocations.length >= 2) {
+      onCompareLocations(savedLocations);
+    }
+  };
+
+  // Remove a saved location
+  const handleRemove = (id: string) => {
+    const map = mapRef.current;
+    if (map && savedMarkersRef.current.has(id)) {
+      map.removeLayer(savedMarkersRef.current.get(id));
+      savedMarkersRef.current.delete(id);
+    }
+    onRemoveLocation?.(id);
+  };
+
+  // Clear all locations
+  const handleClearAll = () => {
+    const map = mapRef.current;
+    if (map) {
+      savedMarkersRef.current.forEach((marker) => {
+        map.removeLayer(marker);
+      });
+      savedMarkersRef.current.clear();
+      if (currentMarkerRef.current) {
+        map.removeLayer(currentMarkerRef.current);
+        currentMarkerRef.current = null;
+      }
+    }
+    setCurrentSelection(null);
+    onClearLocations?.();
   };
 
   return (
@@ -196,7 +276,7 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search address..."
+            placeholder="Search London address..."
             className="pl-9"
           />
         </div>
@@ -207,7 +287,7 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
 
       {/* Map Container */}
       <div className="flex-1 relative rounded-lg overflow-hidden border border-border bg-muted/20">
-        <div ref={mapRef} className="w-full h-full min-h-[400px]" />
+        <div ref={mapContainerRef} className="w-full h-full min-h-[300px]" style={{ zIndex: 1 }} />
         
         {!mapLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-muted/10 backdrop-blur-sm">
@@ -218,27 +298,118 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
           </div>
         )}
 
-        {mapLoaded && !selectedPin && (
-          <div className="absolute bottom-4 left-4 right-4 flex justify-center pointer-events-none">
+        {mapLoaded && !currentSelection && savedLocations.length === 0 && (
+          <div className="absolute bottom-4 left-4 right-4 flex justify-center pointer-events-none z-[1000]">
             <div className="bg-background/95 backdrop-blur shadow-sm border px-4 py-2 rounded-full flex items-center gap-2 pointer-events-auto">
               <MapPin className="w-3.5 h-3.5 text-primary" />
-              <p className="text-xs font-medium">Click to select location</p>
+              <p className="text-xs font-medium">Click map or search to select location</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Selected location info */}
-      {selectedPin && (
-        <div className="mt-4 px-3 py-2 bg-muted/40 rounded-md flex items-center gap-2 border border-border/50">
-          <MapPin className="w-4 h-4 text-primary" />
-          <div className="text-xs">
-            <span className="text-muted-foreground">Selected: </span>
-            <span className="font-mono font-medium text-foreground">
-              {selectedPin.lat.toFixed(5)}, {selectedPin.lng.toFixed(5)}
+      {/* Saved Locations List */}
+      {savedLocations.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">
+              Saved Locations ({savedLocations.length})
             </span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleClearAll}
+              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+            >
+              <Trash2 className="w-3 h-3 mr-1" />
+              Clear All
+            </Button>
+          </div>
+          <div className="max-h-28 overflow-y-auto space-y-1">
+            {savedLocations.map((location, index) => (
+              <div 
+                key={location.id}
+                className="flex items-center gap-2 px-3 py-2 bg-muted/40 rounded-md border border-border/50 group"
+              >
+                <div 
+                  className="w-3 h-3 rounded-full shrink-0" 
+                  style={{ backgroundColor: location.color }}
+                />
+                <span className="text-xs font-medium truncate flex-1">
+                  {index + 1}. {location.address}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemove(location.id)}
+                  className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
           </div>
         </div>
+      )}
+
+      {/* Current Selection Actions */}
+      {currentSelection && (
+        <div className="mt-4 space-y-3">
+          <div className="px-3 py-2 bg-muted/40 rounded-md flex items-center gap-2 border border-border/50">
+            <div 
+              className="w-3 h-3 rounded-full shrink-0" 
+              style={{ backgroundColor: PIN_COLORS[savedLocations.length % PIN_COLORS.length] }}
+            />
+            <div className="text-xs flex-1 min-w-0">
+              <span className="text-muted-foreground">Current: </span>
+              <span className="font-medium text-foreground truncate block">
+                {currentSelection.address || `${currentSelection.lat.toFixed(5)}, ${currentSelection.lng.toFixed(5)}`}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleAddLocation}
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              disabled={savedLocations.length >= 8}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add to Compare
+            </Button>
+            <Button 
+              onClick={handleAnalyzeSingle}
+              size="sm"
+              className="flex-1"
+            >
+              <MapPin className="w-4 h-4 mr-1" />
+              Analyze
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Compare Button */}
+      {savedLocations.length >= 2 && (
+        <div className="mt-3">
+          <Button 
+            onClick={handleCompare}
+            className="w-full"
+            variant="default"
+          >
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Compare {savedLocations.length} Locations
+          </Button>
+        </div>
+      )}
+
+      {/* Helper text */}
+      {savedLocations.length === 1 && !currentSelection && (
+        <p className="mt-3 text-xs text-muted-foreground text-center">
+          Add at least one more location to compare
+        </p>
       )}
     </Card>
   );
