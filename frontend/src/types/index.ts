@@ -49,3 +49,27 @@ export interface LocationData {
   lat: number;
   lng: number;
 }
+
+export interface LandRegistryTransaction {
+  price: number;
+  date: string;
+  property_type: string;
+  tenure: string;
+  address: string;
+}
+
+export interface LandRegistryStatistics {
+  average_price: number;
+  median_price: number;
+  min_price: number;
+  max_price: number;
+  transaction_count: number;
+}
+
+export interface LandRegistryData {
+  success: boolean;
+  transactions: LandRegistryTransaction[];
+  statistics: LandRegistryStatistics;
+  postcode?: string;
+  error?: string;
+}

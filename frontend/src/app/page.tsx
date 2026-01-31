@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Header from '@/components/Header';
 import MapSection, { SavedLocation } from '@/components/MapSection';
 import PropertyPanel from '@/components/PropertyPanel';
-import { PropertyData } from '@/types';
+import { PropertyData, LandRegistryData } from '@/types';
 
 export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -13,6 +13,7 @@ export default function Home() {
     lng: number;
   } | null>(null);
   const [propertyData, setPropertyData] = useState<PropertyData | null>(null);
+  const [landRegistryData, setLandRegistryData] = useState<LandRegistryData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
   // Multi-location comparison state
@@ -27,18 +28,25 @@ export default function Home() {
   }) => {
     setSelectedLocation(location);
     setIsLoading(true);
+    setLandRegistryData(null);
 
     try {
-      const response = await fetch('/api/predict', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(location),
-      });
+      // Fetch property prediction and Land Registry data in parallel
+      const [predictResponse, landRegistryResponse] = await Promise.all([
+        fetch('/api/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(location),
+        }),
+        fetch('/api/land-registry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: location.address }),
+        }),
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
+      if (predictResponse.ok) {
+        const data = await predictResponse.json();
         setPropertyData(data);
       } else {
         // Use placeholder data if API fails
@@ -81,6 +89,12 @@ export default function Home() {
             },
           },
         });
+      }
+
+      // Handle Land Registry response
+      if (landRegistryResponse.ok) {
+        const lrData = await landRegistryResponse.json();
+        setLandRegistryData(lrData);
       }
     } catch (error) {
       console.error('Error fetching prediction:', error);
@@ -293,6 +307,7 @@ export default function Home() {
                 location={selectedLocation}
                 data={propertyData}
                 isLoading={isLoading}
+                landRegistryData={landRegistryData}
               />
             )}
           </div>

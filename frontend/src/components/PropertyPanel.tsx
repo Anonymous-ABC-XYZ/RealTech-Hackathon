@@ -1,6 +1,6 @@
 'use client';
 
-import { PropertyData } from '@/types';
+import { PropertyData, LandRegistryData } from '@/types';
 import {
   TrendingUp,
   Users,
@@ -16,6 +16,8 @@ import {
   ShoppingCart,
   Bus,
   Footprints,
+  History,
+  FileText,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,6 +26,7 @@ interface PropertyPanelProps {
   location: { address: string; lat: number; lng: number } | null;
   data: PropertyData | null;
   isLoading: boolean;
+  landRegistryData?: LandRegistryData | null;
 }
 
 function formatCurrency(value: number): string {
@@ -79,6 +82,7 @@ export default function PropertyPanel({
   location,
   data,
   isLoading,
+  landRegistryData,
 }: PropertyPanelProps) {
   if (!location) {
     return (
@@ -278,6 +282,65 @@ export default function PropertyPanel({
           />
         </div>
       </section>
+
+      {/* Land Registry Section */}
+      {landRegistryData && landRegistryData.success && landRegistryData.transactions && landRegistryData.transactions.length > 0 && (
+        <section>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+            <FileText className="w-3.5 h-3.5" />
+            HM Land Registry Data
+          </h3>
+          
+          {/* Statistics */}
+          {landRegistryData.statistics && (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <DataCard
+                icon={DollarSign}
+                label="Avg Price"
+                value={formatCurrency(landRegistryData.statistics.average_price)}
+              />
+              <DataCard
+                icon={History}
+                label="Transactions"
+                value={landRegistryData.statistics.transaction_count}
+              />
+            </div>
+          )}
+          
+          {/* Recent Transactions */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium text-muted-foreground">Recent Transactions</h4>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {landRegistryData.transactions.slice(0, 5).map((tx, index) => (
+                <div
+                  key={index}
+                  className="rounded-lg border bg-card p-3 text-sm"
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-semibold text-foreground">
+                      {formatCurrency(tx.price)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(tx.date).toLocaleDateString('en-GB')}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {tx.address}
+                  </p>
+                  <div className="flex gap-2 mt-1">
+                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
+                      {tx.property_type}
+                    </span>
+                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
+                      {tx.tenure}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

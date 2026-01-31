@@ -60,10 +60,6 @@ export default function MapSection({
       // Dynamically import Leaflet
       const L = await import('leaflet');
       LRef.current = L.default;
-      
-      // Import Leaflet CSS
-      await import('leaflet/dist/leaflet.css');
-
       if (mapContainerRef.current && !mapRef.current) {
         // Create map centered on London
         const map = L.default.map(mapContainerRef.current, {
