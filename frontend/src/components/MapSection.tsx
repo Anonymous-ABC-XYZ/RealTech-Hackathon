@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { MapPin, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 interface MapSectionProps {
   onLocationSelect: (location: { address: string; lat: number; lng: number }) => void;
@@ -40,17 +43,14 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
     const setupMap = () => {
       const mapkit = (window as any).mapkit;
       
-      // Initialize with token (you'll need to get this from Apple Developer)
       const token = process.env.NEXT_PUBLIC_MAPKIT_TOKEN;
       
       if (!mapkit.maps || mapkit.maps.length === 0) {
         mapkit.init({
           authorizationCallback: (done: (token: string) => void) => {
-            // For development, we'll use a placeholder. In production, use your JWT token
             if (token) {
               done(token);
             } else {
-              // Fallback: Create map without token for demo purposes
               console.warn('MapKit token not found. Map functionality may be limited.');
               done('');
             }
@@ -72,7 +72,6 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
         mapInstanceRef.current = map;
         setMapLoaded(true);
 
-        // Add click handler
         map.addEventListener('single-tap', handleMapClick);
       }
     };
@@ -93,7 +92,6 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
     
     if (!map || !mapkit) return;
 
-    // Convert click point to coordinates
     const point = event.pointOnPage;
     const coordinate = map.convertPointOnPageToCoordinate(point);
     
@@ -102,14 +100,13 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
 
     setSelectedPin({ lat, lng });
 
-    // Remove existing annotation
     if (annotationRef.current) {
       map.removeAnnotation(annotationRef.current);
     }
 
-    // Add new annotation
+    // Modern pin color - using a deep primary color instead of teal
     const annotation = new mapkit.MarkerAnnotation(coordinate, {
-      color: '#19747E',
+      color: '#0f172a', // slate-900 (primary)
       title: 'Selected Location',
       glyphColor: '#ffffff',
     });
@@ -117,7 +114,6 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
     annotationRef.current = annotation;
     map.addAnnotation(annotation);
 
-    // Reverse geocode to get address
     const geocoder = new mapkit.Geocoder();
     geocoder.reverseLookup(coordinate, (error: any, data: any) => {
       if (error) {
@@ -161,23 +157,19 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
         const place = data.results[0];
         const coordinate = place.coordinate;
         
-        // Animate to location
         mapInstanceRef.current.setCenterAnimated(coordinate);
         
-        // Simulate a click at this location
         const lat = coordinate.latitude;
         const lng = coordinate.longitude;
         
         setSelectedPin({ lat, lng });
 
-        // Remove existing annotation
         if (annotationRef.current) {
           mapInstanceRef.current.removeAnnotation(annotationRef.current);
         }
 
-        // Add new annotation
         const annotation = new mapkit.MarkerAnnotation(coordinate, {
-          color: '#19747E',
+          color: '#0f172a',
           title: place.formattedAddress || searchQuery,
           glyphColor: '#ffffff',
         });
@@ -195,51 +187,42 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
   };
 
   return (
-    <div className="glass-card rounded-2xl p-6 h-full min-h-[500px] flex flex-col">
+    <Card className="p-4 h-full min-h-[500px] flex flex-col shadow-sm border-border/60">
       {/* Search Bar */}
-      <form onSubmit={handleSearch} className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
+      <form onSubmit={handleSearch} className="mb-4 flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search for an address..."
-            className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-dark-cyan focus:ring-2 focus:ring-dark-cyan/20 outline-none transition-all bg-white/80"
+            placeholder="Search address..."
+            className="pl-9"
           />
-          <button
-            type="submit"
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 btn-primary px-4 py-1.5 rounded-lg text-white text-sm font-medium"
-          >
-            Search
-          </button>
         </div>
+        <Button type="submit" variant="secondary">
+          Search
+        </Button>
       </form>
 
       {/* Map Container */}
-      <div className="flex-1 relative rounded-xl overflow-hidden map-container bg-platinum">
+      <div className="flex-1 relative rounded-lg overflow-hidden border border-border bg-muted/20">
         <div ref={mapRef} className="w-full h-full min-h-[400px]" />
         
-        {/* Loading overlay */}
         {!mapLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center bg-platinum">
+          <div className="absolute inset-0 flex items-center justify-center bg-muted/10 backdrop-blur-sm">
             <div className="text-center">
-              <div className="w-12 h-12 rounded-full border-4 border-dark-cyan border-t-transparent animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">Loading map...</p>
+              <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground font-medium">Loading Map...</p>
             </div>
           </div>
         )}
 
-        {/* Instructions overlay */}
         {mapLoaded && !selectedPin && (
-          <div className="absolute bottom-4 left-4 right-4">
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-3 flex items-center space-x-3 shadow-lg">
-              <div className="w-8 h-8 rounded-full bg-dark-cyan/10 flex items-center justify-center">
-                <MapPin className="w-4 h-4 text-dark-cyan" />
-              </div>
-              <p className="text-sm text-gray-600">
-                Click anywhere on the map to select a property location
-              </p>
+          <div className="absolute bottom-4 left-4 right-4 flex justify-center pointer-events-none">
+            <div className="bg-background/95 backdrop-blur shadow-sm border px-4 py-2 rounded-full flex items-center gap-2 pointer-events-auto">
+              <MapPin className="w-3.5 h-3.5 text-primary" />
+              <p className="text-xs font-medium">Click to select location</p>
             </div>
           </div>
         )}
@@ -247,16 +230,16 @@ export default function MapSection({ onLocationSelect }: MapSectionProps) {
 
       {/* Selected location info */}
       {selectedPin && (
-        <div className="mt-4 p-3 bg-mint/30 rounded-xl flex items-center space-x-3">
-          <MapPin className="w-5 h-5 text-dark-cyan" />
-          <div className="text-sm">
-            <span className="text-gray-600">Selected: </span>
-            <span className="font-medium text-gray-800">
-              {selectedPin.lat.toFixed(6)}, {selectedPin.lng.toFixed(6)}
+        <div className="mt-4 px-3 py-2 bg-muted/40 rounded-md flex items-center gap-2 border border-border/50">
+          <MapPin className="w-4 h-4 text-primary" />
+          <div className="text-xs">
+            <span className="text-muted-foreground">Selected: </span>
+            <span className="font-mono font-medium text-foreground">
+              {selectedPin.lat.toFixed(5)}, {selectedPin.lng.toFixed(5)}
             </span>
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

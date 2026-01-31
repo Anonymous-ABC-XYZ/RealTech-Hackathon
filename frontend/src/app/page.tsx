@@ -125,30 +125,30 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans antialiased selection:bg-primary/20 selection:text-primary">
       <Header />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section */}
-        <div className="text-center mb-12 animate-fade-in">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold gradient-text mb-4">
-            Property Price Prediction
+      <main className="flex-1 flex flex-col container mx-auto px-4 md:px-6 py-8 md:py-12">
+        {/* Hero Section - Clean & Minimal */}
+        <section className="text-center mb-12 space-y-4 max-w-3xl mx-auto">
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight lg:text-7xl text-primary">
+            Real Estate <span className="text-muted-foreground/50">Intelligence.</span>
           </h1>
-          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-            Click anywhere on the map to get instant AI-powered price predictions
-            and comprehensive area insights.
+          <p className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            Instant, AI-powered valuation and hyper-local insights for any property.
+            Just select a location on the map.
           </p>
-        </div>
+        </section>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Map Section */}
-          <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[800px] lg:h-[600px]">
+          {/* Map Section - Takes up more space */}
+          <div className="lg:col-span-8 h-full rounded-xl overflow-hidden border bg-card shadow-sm">
             <MapSection onLocationSelect={handleLocationSelect} />
           </div>
 
-          {/* Property Panel */}
-          <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          {/* Property Panel - Side panel */}
+          <div className="lg:col-span-4 h-full">
             <PropertyPanel
               location={selectedLocation}
               data={propertyData}
@@ -156,7 +156,7 @@ export default function Home() {
             />
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

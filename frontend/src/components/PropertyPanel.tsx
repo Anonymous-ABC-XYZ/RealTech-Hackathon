@@ -17,6 +17,8 @@ import {
   Bus,
   Footprints,
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PropertyPanelProps {
   location: { address: string; lat: number; lng: number } | null;
@@ -41,41 +43,34 @@ function DataCard({
   label,
   value,
   subValue,
-  color = 'dark-cyan',
 }: {
   icon: any;
   label: string;
   value: string | number;
   subValue?: string;
-  color?: string;
 }) {
   return (
-    <div className="data-card bg-white/60 rounded-xl p-4 border border-gray-100">
-      <div className="flex items-start justify-between">
-        <div
-          className={`w-10 h-10 rounded-lg bg-${color}/10 flex items-center justify-center`}
-          style={{ backgroundColor: `rgba(25, 116, 126, 0.1)` }}
-        >
-          <Icon className="w-5 h-5 text-dark-cyan" />
-        </div>
+    <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+      <div className="flex items-center justify-between mb-2">
+        <Icon className="w-4 h-4 text-muted-foreground" />
         {subValue && (
-          <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+          <span className="text-[10px] font-medium bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full border border-emerald-100">
             {subValue}
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold text-gray-800 mt-3">{value}</p>
-      <p className="text-sm text-gray-500 mt-1">{label}</p>
+      <p className="text-lg font-semibold tracking-tight">{value}</p>
+      <p className="text-xs text-muted-foreground font-medium">{label}</p>
     </div>
   );
 }
 
 function SkeletonCard() {
   return (
-    <div className="bg-white/60 rounded-xl p-4 border border-gray-100">
-      <div className="skeleton w-10 h-10 rounded-lg mb-3" />
-      <div className="skeleton h-8 w-24 rounded mb-2" />
-      <div className="skeleton h-4 w-20 rounded" />
+    <div className="rounded-lg border p-4 space-y-3">
+      <Skeleton className="h-4 w-4 rounded-full" />
+      <Skeleton className="h-6 w-20" />
+      <Skeleton className="h-3 w-16" />
     </div>
   );
 }
@@ -87,98 +82,100 @@ export default function PropertyPanel({
 }: PropertyPanelProps) {
   if (!location) {
     return (
-      <div className="glass-card rounded-2xl p-8 h-full min-h-[500px] flex flex-col items-center justify-center text-center">
-        <div className="w-20 h-20 rounded-2xl bg-mint/50 flex items-center justify-center mb-6">
-          <Home className="w-10 h-10 text-dark-cyan" />
+      <Card className="h-full min-h-[500px] flex flex-col items-center justify-center text-center p-8 border-dashed shadow-none bg-muted/30">
+        <div className="w-16 h-16 rounded-2xl bg-background border flex items-center justify-center mb-4 shadow-sm">
+          <MapPin className="w-8 h-8 text-muted-foreground/50" />
         </div>
-        <h3 className="text-xl font-semibold text-gray-800 mb-2">
-          Select a Location
+        <h3 className="text-lg font-semibold text-foreground mb-1">
+          Select Location
         </h3>
-        <p className="text-gray-500 max-w-sm">
-          Click on the map or search for an address to view property price
-          predictions and area insights.
+        <p className="text-sm text-muted-foreground max-w-xs">
+          Choose a point on the map to view detailed analytics and price predictions.
         </p>
-      </div>
+      </Card>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="glass-card rounded-2xl p-6 h-full min-h-[500px]">
-        <div className="skeleton h-6 w-48 rounded mb-4" />
-        <div className="skeleton h-4 w-64 rounded mb-6" />
-        
-        <div className="skeleton h-32 w-full rounded-xl mb-6" />
-        
-        <div className="grid grid-cols-2 gap-4">
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
+      <Card className="h-full min-h-[500px] border-none shadow-none bg-transparent">
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-8 w-3/4" />
+          </div>
+          
+          <Skeleton className="h-40 w-full rounded-xl" />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (!data) {
     return (
-      <div className="glass-card rounded-2xl p-8 h-full min-h-[500px] flex flex-col items-center justify-center text-center">
-        <div className="w-20 h-20 rounded-2xl bg-red-50 flex items-center justify-center mb-6">
-          <MapPin className="w-10 h-10 text-red-400" />
-        </div>
-        <h3 className="text-xl font-semibold text-gray-800 mb-2">
-          Unable to Load Data
+      <Card className="h-full min-h-[500px] flex flex-col items-center justify-center text-center p-8 border-destructive/20 bg-destructive/5">
+        <MapPin className="w-10 h-10 text-destructive/50 mb-4" />
+        <h3 className="text-lg font-semibold text-destructive mb-1">
+          Data Unavailable
         </h3>
-        <p className="text-gray-500 max-w-sm">
-          We couldn&apos;t fetch data for this location. Please try again.
+        <p className="text-sm text-muted-foreground">
+          Could not fetch property data for this location.
         </p>
-      </div>
+      </Card>
     );
   }
 
   const { prediction, area_data } = data;
 
   return (
-    <div className="glass-card rounded-2xl p-6 h-full overflow-y-auto">
+    <div className="space-y-6 h-full overflow-y-auto pr-2 custom-scrollbar">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center space-x-2 mb-2">
-          <MapPin className="w-5 h-5 text-dark-cyan" />
-          <h2 className="text-lg font-semibold text-gray-800 truncate">
-            {location.address}
-          </h2>
+      <div>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">
+          {location.address}
+        </h2>
+        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+          <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+            {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+          </span>
         </div>
-        <p className="text-sm text-gray-500">
-          {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-        </p>
       </div>
 
       {/* Price Prediction Card */}
-      <div className="bg-gradient-to-br from-dark-cyan to-emerald-600 rounded-2xl p-6 text-white mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-white/80 text-sm font-medium">
-            Predicted Price
-          </span>
-          <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
-            {Math.round(prediction.confidence * 100)}% confidence
-          </span>
+      <Card className="bg-primary text-primary-foreground border-none overflow-hidden relative">
+        <div className="absolute top-0 right-0 p-4 opacity-10">
+          <TrendingUp className="w-24 h-24" />
         </div>
-        <p className="text-4xl font-bold mb-2">
-          {formatCurrency(prediction.predicted_price)}
-        </p>
-        <div className="flex items-center space-x-2 text-white/80 text-sm">
-          <TrendingUp className="w-4 h-4" />
-          <span>
+        <CardContent className="p-6 relative z-10">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-primary-foreground/70 text-sm font-medium">
+              Estimated Value
+            </span>
+            <span className="bg-background/20 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-semibold border border-white/10">
+              {Math.round(prediction.confidence * 100)}% Confidence
+            </span>
+          </div>
+          <p className="text-4xl font-bold tracking-tighter mb-1">
+            {formatCurrency(prediction.predicted_price)}
+          </p>
+          <p className="text-sm text-primary-foreground/60">
             Range: {formatCurrency(prediction.price_range.low)} -{' '}
             {formatCurrency(prediction.price_range.high)}
-          </span>
-        </div>
-      </div>
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Demographics Section */}
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3 flex items-center">
-          <Users className="w-4 h-4 mr-2" />
+      <section>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Users className="w-3.5 h-3.5" />
           Demographics
         </h3>
         <div className="grid grid-cols-3 gap-3">
@@ -194,17 +191,17 @@ export default function PropertyPanel({
           />
           <DataCard
             icon={DollarSign}
-            label="Median Income"
+            label="Med. Income"
             value={`£${formatNumber(area_data.demographics.median_income)}`}
           />
         </div>
-      </div>
+      </section>
 
       {/* Amenities Section */}
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3 flex items-center">
-          <Building className="w-4 h-4 mr-2" />
-          Nearby Amenities
+      <section>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Building className="w-3.5 h-3.5" />
+          Amenities
         </h3>
         <div className="grid grid-cols-2 gap-3">
           <DataCard
@@ -224,22 +221,22 @@ export default function PropertyPanel({
           />
           <DataCard
             icon={ShoppingCart}
-            label="Grocery Stores"
+            label="Shops"
             value={area_data.amenities.grocery_stores}
           />
         </div>
-      </div>
+      </section>
 
       {/* Transport Section */}
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3 flex items-center">
-          <Train className="w-4 h-4 mr-2" />
+      <section>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Train className="w-3.5 h-3.5" />
           Transport
         </h3>
         <div className="grid grid-cols-2 gap-3">
           <DataCard
             icon={Train}
-            label="Nearest Station"
+            label="Nearest Stn"
             value={area_data.transport.nearest_station}
           />
           <DataCard
@@ -259,59 +256,28 @@ export default function PropertyPanel({
             value={area_data.transport.transit_score}
           />
         </div>
-      </div>
-
-      {/* Safety Section */}
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3 flex items-center">
-          <Shield className="w-4 h-4 mr-2" />
-          Safety
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
-          <DataCard
-            icon={Shield}
-            label="Crime Index"
-            value={area_data.safety.crime_index}
-            subValue="Low"
-          />
-          <DataCard
-            icon={Shield}
-            label="Safety Rating"
-            value={area_data.safety.safety_rating}
-          />
-        </div>
-      </div>
+      </section>
 
       {/* Market Trends Section */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3 flex items-center">
-          <TrendingUp className="w-4 h-4 mr-2" />
+      <section>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+          <TrendingUp className="w-3.5 h-3.5" />
           Market Trends
         </h3>
         <div className="grid grid-cols-2 gap-3">
           <DataCard
             icon={DollarSign}
-            label="Avg Price/sqft"
+            label="Price/sqft"
             value={`£${area_data.market_trends.avg_price_sqft}`}
           />
           <DataCard
             icon={TrendingUp}
-            label="YoY Appreciation"
+            label="Growth (YoY)"
             value={`${area_data.market_trends.yoy_appreciation}%`}
-            subValue="Growing"
-          />
-          <DataCard
-            icon={Building}
-            label="Days on Market"
-            value={area_data.market_trends.days_on_market}
-          />
-          <DataCard
-            icon={Home}
-            label="Inventory"
-            value={area_data.market_trends.inventory_level}
+            subValue="Up"
           />
         </div>
-      </div>
+      </section>
     </div>
   );
 }
