@@ -271,7 +271,7 @@ export default function Home() {
                   </button>
                 </div>
                 {comparisonData.map((data, index) => (
-                  <div key={savedLocations[index]?.id || index} className="relative">
+                  <div key={savedLocations[index]?.id || index} className="relative pl-3">
                     <div 
                       className="absolute left-0 top-0 bottom-0 w-1 rounded-l"
                       style={{ backgroundColor: savedLocations[index]?.color || '#0f172a' }}

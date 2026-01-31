@@ -23,7 +23,17 @@ interface MapSectionProps {
   onClearLocations?: () => void;
 }
 
-const PIN_COLORS = ['#0f172a', '#dc2626', '#16a34a', '#2563eb', '#9333ea', '#ea580c', '#0891b2', '#be185d'];
+// More distinct colors for better differentiation
+const PIN_COLORS = [
+  '#01161E', // Very dark teal-black
+  '#598392', // Medium blue-gray (lighter for contrast)
+  '#124559', // Dark cyan
+  '#AEC3B0', // Sage green (light for contrast)
+  '#2E7D8C', // Bright teal (added for contrast)
+  '#8BA399', // Sea green
+  '#467385', // Medium blue
+  '#D4E5D8', // Very light sage (added for contrast)
+];
 
 export default function MapSection({ 
   onLocationSelect,
@@ -203,6 +213,23 @@ export default function MapSection({
   const handleAddLocation = () => {
     if (!currentSelection || !onAddLocation) return;
     
+    // Check if this location already exists (check by coordinates with small tolerance)
+    const isDuplicate = savedLocations.some(loc => 
+      Math.abs(loc.lat - currentSelection.lat) < 0.0001 && 
+      Math.abs(loc.lng - currentSelection.lng) < 0.0001
+    );
+
+    if (isDuplicate) {
+      // Don't add duplicate, just clear current selection
+      if (currentMarkerRef.current && mapRef.current) {
+        mapRef.current.removeLayer(currentMarkerRef.current);
+        currentMarkerRef.current = null;
+      }
+      setCurrentSelection(null);
+      setSearchQuery('');
+      return;
+    }
+
     const newLocation: SavedLocation = {
       id: `loc-${Date.now()}`,
       address: currentSelection.address || `${currentSelection.lat.toFixed(6)}, ${currentSelection.lng.toFixed(6)}`,
@@ -239,8 +266,31 @@ export default function MapSection({
     }
   };
 
+  // Select a saved location for viewing/analysis
+  const handleSelectSaved = (location: SavedLocation) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Pan to the location
+    map.setView([location.lat, location.lng], 15);
+    
+    // Open the popup for this marker
+    const marker = savedMarkersRef.current.get(location.id);
+    if (marker) {
+      marker.openPopup();
+    }
+
+    // Set as current selection
+    setCurrentSelection({
+      lat: location.lat,
+      lng: location.lng,
+      address: location.address,
+    });
+  };
+
   // Remove a saved location
-  const handleRemove = (id: string) => {
+  const handleRemove = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the select handler
     const map = mapRef.current;
     if (map && savedMarkersRef.current.has(id)) {
       map.removeLayer(savedMarkersRef.current.get(id));
@@ -329,7 +379,8 @@ export default function MapSection({
             {savedLocations.map((location, index) => (
               <div 
                 key={location.id}
-                className="flex items-center gap-2 px-3 py-2 bg-muted/40 rounded-md border border-border/50 group"
+                onClick={() => handleSelectSaved(location)}
+                className="flex items-center gap-2 px-3 py-2 bg-muted/40 rounded-md border border-border/50 group hover:bg-muted/60 cursor-pointer transition-colors"
               >
                 <div 
                   className="w-3 h-3 rounded-full shrink-0" 
@@ -341,7 +392,7 @@ export default function MapSection({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleRemove(location.id)}
+                  onClick={(e) => handleRemove(location.id, e)}
                   className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <X className="w-3 h-3" />
@@ -369,16 +420,26 @@ export default function MapSection({
           </div>
           
           <div className="flex gap-2">
-            <Button 
-              onClick={handleAddLocation}
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              disabled={savedLocations.length >= 8}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add to Compare
-            </Button>
+            {(() => {
+              const isDuplicate = savedLocations.some(loc => 
+                Math.abs(loc.lat - currentSelection.lat) < 0.0001 && 
+                Math.abs(loc.lng - currentSelection.lng) < 0.0001
+              );
+              
+              return (
+                <Button 
+                  onClick={handleAddLocation}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  disabled={savedLocations.length >= 8 || isDuplicate}
+                  title={isDuplicate ? "Location already saved" : savedLocations.length >= 8 ? "Maximum 8 locations" : "Add to compare list"}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  {isDuplicate ? "Already Saved" : "Add to Compare"}
+                </Button>
+              );
+            })()}
             <Button 
               onClick={handleAnalyzeSingle}
               size="sm"
