@@ -4,33 +4,19 @@ import json
 import re
 from typing import Dict, Optional, List
 from urllib.parse import quote_plus
+from .advanced_tls_client import create_stealth_session
 
 
 class RightmoveScraper:
     """
     Scraper for UK residential and commercial property data from Rightmove.
-    Uses tls-client to bypass bot detection.
+    Uses advanced TLS client with anti-detection to bypass bot protection.
     """
     
     def __init__(self):
-        self.session = tls_client.Session(
-            client_identifier="chrome_120",
-            random_tls_extension_order=True
-        )
+        # Use advanced stealth client
+        self.client = create_stealth_session()
         self.base_url = "https://www.rightmove.co.uk"
-        self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-GB,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://www.rightmove.co.uk/',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'same-origin',
-        }
     
     def search_property_by_address(self, address: str) -> Dict:
         """
@@ -43,9 +29,12 @@ class RightmoveScraper:
             Dict containing property data including current price, last sale info, tenure, etc.
         """
         try:
-            # Search for the property
+            # Step 1: Visit homepage first to establish session (mimic human behavior)
+            self.client.visit_homepage_first(self.base_url)
+            
+            # Step 2: Search for the property
             search_url = f"{self.base_url}/property-for-sale/search.html?searchLocation={quote_plus(address)}"
-            response = self.session.get(search_url, headers=self.headers)
+            response = self.client.get(search_url, referer=self.base_url)
             
             if response.status_code != 200:
                 return {
@@ -133,7 +122,10 @@ class RightmoveScraper:
         details = {}
         
         try:
-            response = self.session.get(url, headers=self.headers)
+            # Simulate human delay before visiting detail page
+            self.client.simulate_mouse_movement()
+            
+            response = self.client.get(url, referer=self.base_url)
             if response.status_code != 200:
                 return details
             
@@ -195,9 +187,9 @@ class RightmoveScraper:
         }
         
         try:
-            # Search sold prices
+            # Search sold prices with human-like delay
             sold_url = f"{self.base_url}/house-prices/search.html?searchLocation={quote_plus(address)}"
-            response = self.session.get(sold_url, headers=self.headers)
+            response = self.client.get(sold_url, referer=self.base_url)
             
             if response.status_code != 200:
                 return sold_data
