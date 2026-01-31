@@ -1,0 +1,187 @@
+/* Map Section Styles */
+
+.map-section {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--platinum);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.map-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: var(--dark-text);
+}
+
+.map-title svg {
+  width: 22px;
+  height: 22px;
+  color: var(--dark-cyan);
+}
+
+.map-instructions {
+  font-size: 0.875rem;
+  color: var(--gray-text);
+}
+
+/* Map Wrapper */
+.map-wrapper {
+  flex: 1;
+  position: relative;
+  min-height: 400px;
+}
+
+.apple-map {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Fallback Map */
+.fallback-map {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(145deg, var(--soft-mint) 0%, var(--light-blue) 100%);
+  cursor: crosshair;
+  overflow: hidden;
+}
+
+.fallback-map-content {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.fallback-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(25, 116, 126, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(25, 116, 126, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.fallback-marker {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  width: 40px;
+  height: 40px;
+  z-index: 10;
+  animation: markerDrop 0.3s ease-out;
+}
+
+@keyframes markerDrop {
+  from {
+    transform: translate(-50%, -150%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -100%);
+    opacity: 1;
+  }
+}
+
+.fallback-marker svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
+}
+
+.fallback-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--dark-cyan);
+  pointer-events: none;
+}
+
+.fallback-message p {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.fallback-message span {
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+
+/* Map Loading */
+.map-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--platinum);
+  border-top-color: var(--dark-cyan);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.map-loading span {
+  color: var(--gray-text);
+  font-size: 0.875rem;
+}
+
+/* Selected Address */
+.selected-address {
+  padding: 16px 24px;
+  border-top: 1px solid var(--platinum);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--soft-mint);
+}
+
+.selected-address svg {
+  width: 20px;
+  height: 20px;
+  color: var(--dark-cyan);
+  flex-shrink: 0;
+}
+
+.selected-address span {
+  font-size: 0.875rem;
+  color: var(--dark-text);
+  line-height: 1.4;
+}
