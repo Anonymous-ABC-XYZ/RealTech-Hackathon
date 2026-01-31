@@ -1,7 +1,26 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from scraper.multi_source_scraper import search_property_multi_source
+from scraper.land_registry_scraper import search_land_registry
+from scraper.zoopla_scraper import search_zoopla
+from scraper.onthemarket_scraper import search_onthemarket
 from scraper.rightmove_scraper import scrape_property
+
+# Playwright scrapers
+from scraper.playwright_rightmove import scrape_rightmove_playwright
+from scraper.playwright_zoopla import scrape_zoopla_playwright
+from scraper.playwright_onthemarket import scrape_onthemarket_playwright
+
+# Scansan API
+from scraper.scansan_api import search_scansan, get_comprehensive_property_data
+
 import logging
+import re
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -19,25 +38,20 @@ def health_check():
 @app.route('/api/property', methods=['GET'])
 def get_property_data():
     """
-    Get property data by address.
+    Get property data by address from multiple sources.
     
-    Expected header:
-        Address: Full UK property address
+    Expected headers:
+        Address: Full UK property address (required)
+        Postcode: UK postcode (optional, recommended for Land Registry)
+        Strategy: "all" or "priority" (optional, default: "priority")
         
     Returns:
-        JSON response with property information including:
-        - current_price: Current listing price if available
-        - last_sale_price: Last sale price
-        - last_sale_date: Date of last sale
-        - tenure: Freehold/Leasehold
-        - property_type: Type of property
-        - bedrooms: Number of bedrooms
-        - features: List of property features
-        - agent: Estate agent information
-        - and more...
+        JSON response with aggregated property information from multiple sources
     """
-    # Get address from header
+    # Get parameters from headers
     address = request.headers.get('Address')
+    postcode = request.headers.get('Postcode')
+    strategy = request.headers.get('Strategy', 'priority')
     
     if not address:
         return jsonify({
@@ -45,14 +59,18 @@ def get_property_data():
             "error": "Address header is required"
         }), 400
     
-    logger.info(f"Scraping property data for address: {address}")
+    logger.info(f"Scraping property data for address: {address} (strategy: {strategy})")
     
     try:
-        # Scrape property data
-        property_data = scrape_property(address)
+        # Use multi-source scraper
+        property_data = search_property_multi_source(
+            address=address,
+            postcode=postcode,
+            strategy=strategy
+        )
         
         if property_data.get("success"):
-            logger.info(f"Successfully scraped data for: {address}")
+            logger.info(f"Successfully scraped data from {len(property_data.get('successful_sources', []))} sources")
             return jsonify(property_data), 200
         else:
             logger.warning(f"Failed to scrape data for: {address}")
@@ -74,11 +92,13 @@ def get_property_data_post():
     
     Expected JSON body:
         {
-            "address": "Full UK property address"
+            "address": "Full UK property address",
+            "postcode": "SW1A 2AA" (optional),
+            "strategy": "all" or "priority" (optional, default: priority)
         }
         
     Returns:
-        JSON response with property information
+        JSON response with aggregated property information from multiple sources
     """
     data = request.get_json()
     
@@ -89,14 +109,21 @@ def get_property_data_post():
         }), 400
     
     address = data['address']
-    logger.info(f"Scraping property data for address: {address}")
+    postcode = data.get('postcode')
+    strategy = data.get('strategy', 'priority')
+    
+    logger.info(f"Scraping property data for address: {address} (strategy: {strategy})")
     
     try:
-        # Scrape property data
-        property_data = scrape_property(address)
+        # Use multi-source scraper
+        property_data = search_property_multi_source(
+            address=address,
+            postcode=postcode,
+            strategy=strategy
+        )
         
         if property_data.get("success"):
-            logger.info(f"Successfully scraped data for: {address}")
+            logger.info(f"Successfully scraped data from {len(property_data.get('successful_sources', []))} sources")
             return jsonify(property_data), 200
         else:
             logger.warning(f"Failed to scrape data for: {address}")
@@ -118,7 +145,9 @@ def get_batch_properties():
     
     Expected JSON body:
         {
-            "addresses": ["address1", "address2", ...]
+            "addresses": ["address1", "address2", ...],
+            "postcodes": ["postcode1", "postcode2", ...] (optional),
+            "strategy": "all" or "priority" (optional)
         }
         
     Returns:
@@ -133,6 +162,8 @@ def get_batch_properties():
         }), 400
     
     addresses = data['addresses']
+    postcodes = data.get('postcodes', [])
+    strategy = data.get('strategy', 'priority')
     
     if not isinstance(addresses, list):
         return jsonify({
@@ -143,9 +174,10 @@ def get_batch_properties():
     logger.info(f"Batch scraping {len(addresses)} properties")
     
     results = []
-    for address in addresses:
+    for i, address in enumerate(addresses):
         try:
-            property_data = scrape_property(address)
+            postcode = postcodes[i] if i < len(postcodes) else None
+            property_data = search_property_multi_source(address, postcode, strategy)
             results.append(property_data)
         except Exception as e:
             results.append({
@@ -159,6 +191,312 @@ def get_batch_properties():
         "count": len(results),
         "results": results
     }), 200
+
+
+@app.route('/api/sources/land-registry', methods=['GET', 'POST'])
+def get_land_registry_data():
+    """
+    Get data specifically from Land Registry (Official Government Data).
+    Most reliable source for historical sale prices.
+    
+    GET: Use 'Postcode' header
+    POST: Use JSON body with 'postcode' field
+    """
+    if request.method == 'GET':
+        postcode = request.headers.get('Postcode')
+    else:
+        data = request.get_json()
+        postcode = data.get('postcode') if data else None
+    
+    if not postcode:
+        return jsonify({
+            "success": False,
+            "error": "Postcode is required"
+        }), 400
+    
+    try:
+        result = search_land_registry(postcode)
+        return jsonify(result), 200 if result.get("success") else 404
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "source": "Land Registry"
+        }), 500
+
+
+@app.route('/api/sources/zoopla', methods=['GET', 'POST'])
+def get_zoopla_data():
+    """
+    Get data specifically from Zoopla.
+    
+    GET: Use 'Address' header
+    POST: Use JSON body with 'address' field
+    """
+    if request.method == 'GET':
+        address = request.headers.get('Address')
+    else:
+        data = request.get_json()
+        address = data.get('address') if data else None
+    
+    if not address:
+        return jsonify({
+            "success": False,
+            "error": "Address is required"
+        }), 400
+    
+    try:
+        result = search_zoopla(address)
+        return jsonify(result), 200 if result.get("success") else 404
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "source": "Zoopla"
+        }), 500
+
+
+@app.route('/api/sources/onthemarket', methods=['GET', 'POST'])
+def get_onthemarket_data():
+    """
+    Get data specifically from OnTheMarket.
+    
+    GET: Use 'Address' header
+    POST: Use JSON body with 'address' field
+    """
+    if request.method == 'GET':
+        address = request.headers.get('Address')
+    else:
+        data = request.get_json()
+        address = data.get('address') if data else None
+    
+    if not address:
+        return jsonify({
+            "success": False,
+            "error": "Address is required"
+        }), 400
+    
+    try:
+        result = search_onthemarket(address)
+        return jsonify(result), 200 if result.get("success") else 404
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "source": "OnTheMarket"
+        }), 500
+
+
+@app.route('/api/sources/rightmove', methods=['GET', 'POST'])
+def get_rightmove_data():
+    """
+    Get data specifically from Rightmove.
+    
+    GET: Use 'Address' header
+    POST: Use JSON body with 'address' field
+    """
+    if request.method == 'GET':
+        address = request.headers.get('Address')
+    else:
+        data = request.get_json()
+        address = data.get('address') if data else None
+    
+    if not address:
+        return jsonify({
+            "success": False,
+            "error": "Address is required"
+        }), 400
+    
+    try:
+        result = scrape_property(address)
+        return jsonify(result), 200 if result.get("success") else 404
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "source": "Rightmove"
+        }), 500
+
+
+# ============================================================
+# SCANSAN API ENDPOINTS (Official Property Data API)
+# ============================================================
+
+@app.route('/api/scansan/search', methods=['GET', 'POST'])
+def scansan_search():
+    """
+    Search properties using Scansan API.
+    Official UK property data API - most reliable source.
+    
+    GET: Use 'Address' and/or 'Postcode' headers
+    POST: Use JSON body with 'address' and/or 'postcode' fields
+    """
+    if request.method == 'GET':
+        address = request.headers.get('Address')
+        postcode = request.headers.get('Postcode')
+    else:
+        data = request.get_json()
+        address = data.get('address') if data else None
+        postcode = data.get('postcode') if data else None
+    
+    if not address and not postcode:
+        return jsonify({
+            "success": False,
+            "error": "Address or postcode required"
+        }), 400
+    
+    logger.info(f"Scansan API search: address={address}, postcode={postcode}")
+    
+    try:
+        result = search_scansan(address=address, postcode=postcode)
+        return jsonify(result), 200 if result.get("success") else 404
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "source": "Scansan API"
+        }), 500
+
+
+@app.route('/api/scansan/comprehensive', methods=['GET', 'POST'])
+def scansan_comprehensive():
+    """
+    Get comprehensive property data from Scansan API.
+    Includes property details, sale history, valuation, and area statistics.
+    
+    GET: Use 'Address' and/or 'Postcode' headers
+    POST: Use JSON body with 'address' and/or 'postcode' fields
+    """
+    if request.method == 'GET':
+        address = request.headers.get('Address')
+        postcode = request.headers.get('Postcode')
+    else:
+        data = request.get_json()
+        address = data.get('address') if data else None
+        postcode = data.get('postcode') if data else None
+    
+    if not address and not postcode:
+        return jsonify({
+            "success": False,
+            "error": "Address or postcode required"
+        }), 400
+    
+    logger.info(f"Scansan API comprehensive search: address={address}, postcode={postcode}")
+    
+    try:
+        result = get_comprehensive_property_data(address=address, postcode=postcode)
+        return jsonify(result), 200 if result.get("success") else 404
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "source": "Scansan API"
+        }), 500
+
+
+# ============================================================
+# PLAYWRIGHT-BASED ENDPOINTS (Real Browser Automation)
+# ============================================================
+
+@app.route('/api/playwright/rightmove', methods=['GET', 'POST'])
+def get_rightmove_playwright():
+    """
+    Get data from Rightmove using Playwright (real browser).
+    Bypasses all bot protection including Cloudflare.
+    
+    GET: Use 'Address' header
+    POST: Use JSON body with 'address' field
+    """
+    if request.method == 'GET':
+        address = request.headers.get('Address')
+    else:
+        data = request.get_json()
+        address = data.get('address') if data else None
+    
+    if not address:
+        return jsonify({
+            "success": False,
+            "error": "Address is required"
+        }), 400
+    
+    logger.info(f"Scraping Rightmove with Playwright: {address}")
+    
+    try:
+        result = scrape_rightmove_playwright(address, headless=True)
+        return jsonify(result), 200 if result.get("success") else 404
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "source": "Rightmove (Playwright)"
+        }), 500
+
+
+@app.route('/api/playwright/zoopla', methods=['GET', 'POST'])
+def get_zoopla_playwright():
+    """
+    Get data from Zoopla using Playwright (real browser).
+    Bypasses Cloudflare protection.
+    
+    GET: Use 'Address' header
+    POST: Use JSON body with 'address' field
+    """
+    if request.method == 'GET':
+        address = request.headers.get('Address')
+    else:
+        data = request.get_json()
+        address = data.get('address') if data else None
+    
+    if not address:
+        return jsonify({
+            "success": False,
+            "error": "Address is required"
+        }), 400
+    
+    logger.info(f"Scraping Zoopla with Playwright: {address}")
+    
+    try:
+        result = scrape_zoopla_playwright(address, headless=True)
+        return jsonify(result), 200 if result.get("success") else 404
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "source": "Zoopla (Playwright)"
+        }), 500
+
+
+@app.route('/api/playwright/onthemarket', methods=['GET', 'POST'])
+def get_onthemarket_playwright():
+    """
+    Get data from OnTheMarket using Playwright (real browser).
+    
+    GET: Use 'Address' header
+    POST: Use JSON body with 'address' field
+    """
+    if request.method == 'GET':
+        address = request.headers.get('Address')
+    else:
+        data = request.get_json()
+        address = data.get('address') if data else None
+    
+    if not address:
+        return jsonify({
+            "success": False,
+            "error": "Address is required"
+        }), 400
+    
+    logger.info(f"Scraping OnTheMarket with Playwright: {address}")
+    
+    try:
+        result = scrape_onthemarket_playwright(address, headless=True)
+        return jsonify(result), 200 if result.get("success") else 404
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "source": "OnTheMarket (Playwright)"
+        }), 500
 
 
 @app.errorhandler(404)
