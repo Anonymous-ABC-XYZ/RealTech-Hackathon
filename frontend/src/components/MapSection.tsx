@@ -51,6 +51,12 @@ export default function MapSection({
   const currentMarkerRef = useRef<any>(null);
   const savedMarkersRef = useRef<Map<string, any>>(new Map());
   const LRef = useRef<any>(null);
+  
+  // Search suggestions state
+  const [suggestions, setSuggestions] = useState<Array<{ display_name: string; lat: string; lon: string }>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize Leaflet map
   useEffect(() => {
@@ -154,9 +160,66 @@ export default function MapSection({
     }
   }, [savedLocations.length, createMarkerIcon]);
 
-  // Handle search
+  // Fetch search suggestions
+  const fetchSuggestions = async (query: string) => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const searchQuery = query.toLowerCase().includes('london') 
+        ? query 
+        : `${query}, London, UK`;
+      
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`
+      );
+      const data = await response.json();
+      setSuggestions(data || []);
+    } catch (error) {
+      console.error('Search suggestions error:', error);
+      setSuggestions([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle search input change with debounce
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    setShowSuggestions(true);
+
+    // Debounce the search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      fetchSuggestions(value);
+    }, 300);
+  };
+
+  // Handle suggestion selection
+  const handleSelectSuggestion = (suggestion: { display_name: string; lat: string; lon: string }) => {
+    const latitude = parseFloat(suggestion.lat);
+    const longitude = parseFloat(suggestion.lon);
+    
+    setSearchQuery(suggestion.display_name);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    
+    if (mapRef.current) {
+      mapRef.current.setView([latitude, longitude], 15);
+      handleMapClick(latitude, longitude);
+    }
+  };
+
+  // Handle search form submit
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    setShowSuggestions(false);
     if (!searchQuery.trim() || !mapRef.current) return;
 
     try {
@@ -321,14 +384,40 @@ export default function MapSection({
       {/* Search Bar */}
       <form onSubmit={handleSearch} className="mb-4 flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
           <Input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchInputChange}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             placeholder="Search London address..."
             className="pl-9"
           />
+          
+          {/* Dropdown suggestions */}
+          {showSuggestions && (suggestions.length > 0 || isSearching) && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg z-50 max-h-64 overflow-y-auto">
+              {isSearching ? (
+                <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  Searching...
+                </div>
+              ) : (
+                suggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleSelectSuggestion(suggestion)}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 border-b border-border/50 last:border-b-0 flex items-start gap-2 transition-colors"
+                  >
+                    <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    <span className="line-clamp-2">{suggestion.display_name}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
         <Button type="submit" variant="secondary">
           Search
