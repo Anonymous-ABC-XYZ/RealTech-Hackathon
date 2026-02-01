@@ -7,14 +7,16 @@ from typing import Dict, List, Optional
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import json
+import requests
 
 from .land_registry_scraper import search_land_registry
+from .flood_risk_scraper import get_flood_risk
 
 
 class MultiSourcePropertyScraper:
     """
     Aggregates property data from multiple sources for maximum reliability.
-    Sources: Land Registry (Gov)
+    Sources: Land Registry (Gov), Environment Agency (Flood)
     """
     
     def __init__(self):
@@ -22,18 +24,37 @@ class MultiSourcePropertyScraper:
             'land_registry': search_land_registry
         }
     
+    def _get_coords_from_postcode(self, postcode: str) -> Optional[Dict[str, float]]:
+        """Get coordinates from postcode using free postcodes.io API"""
+        try:
+            response = requests.get(f"https://api.postcodes.io/postcodes/{postcode}", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "lat": data["result"]["latitude"],
+                    "lng": data["result"]["longitude"]
+                }
+        except Exception:
+            pass
+        return None
+
     def search_all_sources(self, address: str, postcode: str = None) -> Dict:
         """
         Search all sources and aggregate results.
         
         Args:
             address: Full UK property address
-            postcode: Optional postcode (required for Land Registry)
+            postcode: Optional postcode (required for Land Registry/Flood)
             
         Returns:
             Aggregated property data from all successful sources
         """
         results = {}
+        coords = None
+        
+        # Get coordinates if postcode is available
+        if postcode:
+            coords = self._get_coords_from_postcode(postcode)
         
         # Use ThreadPoolExecutor for parallel scraping
         with ThreadPoolExecutor(max_workers=4) as executor:
@@ -42,6 +63,9 @@ class MultiSourcePropertyScraper:
             # Submit all scraping tasks
             if postcode:
                 futures['land_registry'] = executor.submit(search_land_registry, postcode)
+            
+            if coords:
+                futures['flood_risk'] = executor.submit(get_flood_risk, coords['lat'], coords['lng'])
             
             # Collect results
             for source, future in futures.items():
@@ -62,13 +86,6 @@ class MultiSourcePropertyScraper:
         """
         Search sources in priority order, return first successful result.
         Priority: Land Registry
-        
-        Args:
-            address: Full UK property address
-            postcode: Optional postcode
-            
-        Returns:
-            Property data from first successful source
         """
         # Try Land Registry first (most reliable - official gov data)
         if postcode:
@@ -122,6 +139,16 @@ class MultiSourcePropertyScraper:
             aggregated["data"]["last_sale_date"] = lr_data.get("last_sale_date")
             aggregated["data"]["sale_history"] = lr_data.get("sale_history", [])
             aggregated["data"]["sale_history_source"] = "Land Registry (Official)"
+            
+        # Aggregate flood risk data
+        if 'flood_risk' in successful:
+            flood_data = successful['flood_risk']
+            aggregated["data"]["flood_risk"] = {
+                "risk_level": flood_data.get("risk_level"),
+                "risk_score": flood_data.get("risk_score"),
+                "active_alerts": flood_data.get("active_alerts"),
+                "nearest_alert": flood_data.get("nearest_alert_message")
+            }
         
         # Include all raw source data for transparency
         aggregated["raw_sources"] = successful
