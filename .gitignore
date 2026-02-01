@@ -1,3 +1,6 @@
+# CSV File
+./ml-dataset/kaggle_london_house_price_data.csv
+
 # Dependencies
 node_modules/
 venv/
