@@ -5,7 +5,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'RealTech - Property Price Prediction',
+  title: 'PinPoint Property - Property Price Prediction',
   description: 'AI-powered property price predictions with real-time market insights',
 };
 

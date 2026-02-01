@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Header from '@/components/Header';
 import MapSection, { SavedLocation } from '@/components/MapSection';
 import PropertyPanel from '@/components/PropertyPanel';
+import ComparisonChart from '@/components/ComparisonChart';
 import { predictResilience } from '@/services/api';
 
 // Helper to extract UK postcode
@@ -36,6 +37,10 @@ export default function Home() {
     setSelectedLocation(location);
     setIsLoading(true);
     setPropertyData(null);
+    
+    // Exit comparison mode when analyzing a single location
+    setIsCompareMode(false);
+    setComparisonData([]);
 
     const postcode = extractPostcode(location.address);
 
@@ -146,7 +151,7 @@ export default function Home() {
         {/* Hero Section - Clean & Minimal */}
         <section className="text-center mb-12 space-y-4 max-w-3xl mx-auto">
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight lg:text-7xl text-primary">
-            Real Estate <span className="text-muted-foreground/50">Intelligence.</span>
+            PinPoint <span className="text-muted-foreground/50">Property.</span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
             Instant, AI-powered valuation and hyper-local insights for any property.
@@ -170,7 +175,7 @@ export default function Home() {
 
           {/* Property Panel - Side panel */}
           <div className="lg:col-span-4 h-full overflow-auto">
-            {isCompareMode && comparisonData.length > 0 ? (
+            {isCompareMode ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Comparison Results</h3>
@@ -181,23 +186,47 @@ export default function Home() {
                     Back to single view
                   </button>
                 </div>
-                {comparisonData.map((data, index) => (
-                  <div key={savedLocations[index]?.id || index} className="relative pl-3">
-                    <div 
-                      className="absolute left-0 top-0 bottom-0 w-1 rounded-l"
-                      style={{ backgroundColor: savedLocations[index]?.color || '#0f172a' }}
-                    />
-                    <PropertyPanel
-                      location={savedLocations[index] ? {
-                        address: savedLocations[index].address,
-                        lat: savedLocations[index].lat,
-                        lng: savedLocations[index].lng,
-                      } : null}
-                      data={data}
-                      isLoading={false}
-                    />
+                
+                {/* Comparison Chart */}
+                {!isLoading && comparisonData.length > 0 && (
+                  <ComparisonChart 
+                    savedLocations={savedLocations} 
+                    comparisonData={comparisonData} 
+                  />
+                )}
+                
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {savedLocations.map((_, index) => (
+                      <div key={index} className="relative pl-3">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l bg-muted-foreground/30" />
+                        <div className="p-4 bg-muted/50 rounded-lg border animate-pulse">
+                          <div className="h-4 bg-muted-foreground/20 rounded w-3/4 mb-3" />
+                          <div className="h-3 bg-muted-foreground/20 rounded w-1/2 mb-2" />
+                          <div className="h-3 bg-muted-foreground/20 rounded w-2/3" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : comparisonData.length > 0 ? (
+                  comparisonData.map((data, index) => (
+                    <div key={savedLocations[index]?.id || index} className="relative pl-3">
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 rounded-l"
+                        style={{ backgroundColor: savedLocations[index]?.color || '#0f172a' }}
+                      />
+                      <PropertyPanel
+                        location={savedLocations[index] ? {
+                          address: savedLocations[index].address,
+                          lat: savedLocations[index].lat,
+                          lng: savedLocations[index].lng,
+                        } : null}
+                        data={data}
+                        isLoading={false}
+                      />
+                    </div>
+                  ))
+                ) : null}
               </div>
             ) : (
               <PropertyPanel

@@ -13,7 +13,7 @@ export default function Header() {
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-sm">
             <Home className="w-4 h-4" />
           </div>
-          <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">RealTech</span>
+          <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">PinPoint Property</span>
         </div>
 
         {/* Navigation Links */}

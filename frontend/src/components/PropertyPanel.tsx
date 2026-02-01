@@ -301,8 +301,8 @@ export default function PropertyPanel({
               <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5" /> Crime Safety
               </span>
-              <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-background">
-                Index: {Math.round(100 - resilience.components.crime_safety)}
+              <Badge variant={resilience.components.crime_safety >= 70 ? 'outline' : resilience.components.crime_safety >= 40 ? 'secondary' : 'destructive'} className="text-[10px] px-1.5 h-5">
+                {resilience.components.crime_safety >= 70 ? 'Low' : resilience.components.crime_safety >= 40 ? 'Medium' : 'High'}
               </Badge>
             </div>
             <Progress value={resilience.components.crime_safety} className="h-1.5 mb-2" indicatorClassName={getProgressColor(resilience.components.crime_safety)} />
