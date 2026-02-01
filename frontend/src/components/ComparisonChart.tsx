@@ -36,12 +36,16 @@ const chartOptions: { value: ChartType; label: string; icon: React.ReactNode }[]
 export default function ComparisonChart({ savedLocations, comparisonData }: ComparisonChartProps) {
   const [selectedChart, setSelectedChart] = useState<ChartType>('price');
 
+  // Only use locations that have actual comparison data
+  const locationsWithData = savedLocations.filter((_, idx) => comparisonData[idx] != null);
+
   // Prepare data for price forecast line chart
   const getPriceData = () => {
     const years = ['Current', '1 Year', '3 Years', '5 Years'];
     return years.map((year, idx) => {
       const dataPoint: any = { year };
-      savedLocations.forEach((loc, locIdx) => {
+      locationsWithData.forEach((loc) => {
+        const locIdx = savedLocations.findIndex(l => l.id === loc.id);
         const data = comparisonData[locIdx];
         if (data) {
           const currentPrice = data.current_valuation?.value || 450000;
@@ -62,8 +66,9 @@ export default function ComparisonChart({ savedLocations, comparisonData }: Comp
 
   // Prepare data for bar charts
   const getBarData = (type: ChartType) => {
-    return savedLocations.map((loc, idx) => {
-      const data = comparisonData[idx];
+    return locationsWithData.map((loc, index) => {
+      const locIdx = savedLocations.findIndex(l => l.id === loc.id);
+      const data = comparisonData[locIdx];
       let value = 0;
       
       if (data) {
@@ -87,7 +92,8 @@ export default function ComparisonChart({ savedLocations, comparisonData }: Comp
       }
       
       return {
-        name: loc.address.length > 20 ? loc.address.substring(0, 17) + '...' : loc.address,
+        name: `${index + 1}`,
+        fullAddress: loc.address,
         value,
         color: loc.color,
       };
@@ -171,7 +177,7 @@ export default function ComparisonChart({ savedLocations, comparisonData }: Comp
                 labelStyle={{ color: '#f3f4f6' }}
               />
               <Legend wrapperStyle={{ fontSize: '10px' }} />
-              {savedLocations.map((loc, idx) => (
+              {locationsWithData.map((loc) => (
                 <Line
                   key={loc.id}
                   type="monotone"
@@ -188,12 +194,9 @@ export default function ComparisonChart({ savedLocations, comparisonData }: Comp
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
               <XAxis 
                 dataKey="name" 
-                tick={{ fontSize: 9, fill: '#9ca3af' }}
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
                 axisLine={{ stroke: '#374151' }}
                 interval={0}
-                angle={-15}
-                textAnchor="end"
-                height={60}
               />
               <YAxis 
                 domain={yAxisConfig.domain as [number, number]}
@@ -203,9 +206,16 @@ export default function ComparisonChart({ savedLocations, comparisonData }: Comp
                 label={{ value: getYAxisLabel(), angle: -90, position: 'insideLeft', fontSize: 10, fill: '#9ca3af' }}
               />
               <Tooltip 
-                formatter={(value) => [`${Number(value).toFixed(1)}`, getYAxisLabel()]}
-                contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
-                labelStyle={{ color: '#f3f4f6' }}
+                formatter={(value, name, props) => [`${Number(value).toFixed(1)}`, getYAxisLabel()]}
+                labelFormatter={(label, payload) => {
+                  if (payload && payload[0]) {
+                    return payload[0].payload.fullAddress;
+                  }
+                  return label;
+                }}
+                contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px', padding: '6px 10px', fontSize: '11px' }}
+                labelStyle={{ color: '#f3f4f6', fontSize: '10px', marginBottom: '2px' }}
+                itemStyle={{ color: '#f3f4f6', fontSize: '11px', padding: 0 }}
               />
               <Bar 
                 dataKey="value" 

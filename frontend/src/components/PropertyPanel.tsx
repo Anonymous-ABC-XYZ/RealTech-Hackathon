@@ -287,11 +287,19 @@ export default function PropertyPanel({
               <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Droplets className="w-3.5 h-3.5" /> Flood Risk
               </span>
-              <Badge variant={risk_factors.flood_risk_level === 'Low' ? 'outline' : 'destructive'} className="text-[10px] px-1.5 h-5">
+              <Badge 
+                variant="outline"
+                className={cn(
+                  "text-[10px] px-1.5 h-5 border-0",
+                  risk_factors.flood_risk_level === 'Low' ? 'bg-emerald-500 text-white' : 
+                  risk_factors.flood_risk_level === 'Medium' ? 'bg-amber-500 text-white' : 
+                  'bg-rose-500 text-white'
+                )}
+              >
                 {risk_factors.flood_risk_level}
               </Badge>
             </div>
-            <Progress value={resilience.components.flood_safety} className="h-1.5 mb-2" indicatorClassName={getProgressColor(resilience.components.flood_safety)} />
+            <Progress value={resilience.components.flood_safety} className="h-1.5 mb-2 bg-gray-200 dark:bg-gray-700" indicatorClassName={getProgressColor(resilience.components.flood_safety)} />
             <p className="text-[10px] text-right font-medium text-muted-foreground">{resilience.components.flood_safety}/100 Safety Score</p>
           </div>
 
@@ -301,11 +309,19 @@ export default function PropertyPanel({
               <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5" /> Crime
               </span>
-              <Badge variant={resilience.components.crime_safety >= 70 ? 'outline' : resilience.components.crime_safety >= 40 ? 'secondary' : 'destructive'} className="text-[10px] px-1.5 h-5">
+              <Badge 
+                variant="outline"
+                className={cn(
+                  "text-[10px] px-1.5 h-5 border-0",
+                  resilience.components.crime_safety >= 70 ? 'bg-emerald-500 text-white' : 
+                  resilience.components.crime_safety >= 40 ? 'bg-amber-500 text-white' : 
+                  'bg-rose-500 text-white'
+                )}
+              >
                 {resilience.components.crime_safety >= 70 ? 'Low' : resilience.components.crime_safety >= 40 ? 'Medium' : 'High'}
               </Badge>
             </div>
-            <Progress value={resilience.components.crime_safety} className="h-1.5 mb-2" indicatorClassName={getProgressColor(resilience.components.crime_safety)} />
+            <Progress value={resilience.components.crime_safety} className="h-1.5 mb-2 bg-gray-200 dark:bg-gray-700" indicatorClassName={getProgressColor(resilience.components.crime_safety)} />
             <p className="text-[10px] text-right font-medium text-muted-foreground">{resilience.components.crime_safety}/100 Safety Score</p>
           </div>
         </div>
