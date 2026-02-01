@@ -41,3 +41,4 @@ out/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+ml-dataset/kaggle_london_house_price_data.csv
