@@ -4,7 +4,15 @@ import { useState } from 'react';
 import Header from '@/components/Header';
 import MapSection, { SavedLocation } from '@/components/MapSection';
 import PropertyPanel from '@/components/PropertyPanel';
-import { PropertyData } from '@/types';
+import { predictResilience } from '@/services/api';
+
+// Helper to extract UK postcode
+function extractPostcode(address: string): string | null {
+  // Simple regex for UK postcode patterns (e.g., SW7 3RP, EC1A 1BB, W1 2AA)
+  const regex = /([Gg][Ii][Rr] 0[Aa]{2})|((([A-Za-z][0-9]{1,2})|(([A-Za-z][A-Ha-hJ-Yj-y][0-9]{1,2})|(([A-Za-z][0-9][A-Za-z])|([A-Za-z][A-Ha-hJ-Yj-y][0-9][A-Za-z]?))))\s?[0-9][A-Za-z]{2})/;
+  const match = address.match(regex);
+  return match ? match[0] : null;
+}
 
 export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -12,12 +20,12 @@ export default function Home() {
     lat: number;
     lng: number;
   } | null>(null);
-  const [propertyData, setPropertyData] = useState<PropertyData | null>(null);
+  const [propertyData, setPropertyData] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
   // Multi-location comparison state
   const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
-  const [comparisonData, setComparisonData] = useState<PropertyData[]>([]);
+  const [comparisonData, setComparisonData] = useState<any[]>([]);
   const [isCompareMode, setIsCompareMode] = useState(false);
 
   const handleLocationSelect = async (location: {
@@ -27,103 +35,26 @@ export default function Home() {
   }) => {
     setSelectedLocation(location);
     setIsLoading(true);
+    setPropertyData(null);
+
+    const postcode = extractPostcode(location.address);
+
+    if (!postcode) {
+      console.warn("Could not extract postcode from address:", location.address);
+      // Fallback: If no postcode, we can't query the backend efficiently yet.
+      // For Hackathon, we could assume a default or ask user.
+      // We'll just try querying with the first part of address or fail.
+      setIsLoading(false);
+      return; 
+    }
 
     try {
-      const response = await fetch('/api/predict', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(location),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setPropertyData(data);
-      } else {
-        // Use placeholder data if API fails
-        setPropertyData({
-          success: true,
-          address: location.address,
-          coordinates: { lat: location.lat, lng: location.lng },
-          prediction: {
-            predicted_price: 450000,
-            confidence: 0.85,
-            price_range: { low: 420000, high: 480000 },
-          },
-          area_data: {
-            demographics: {
-              population: 45000,
-              median_age: 34,
-              median_income: 65000,
-            },
-            amenities: {
-              schools_nearby: 5,
-              parks_nearby: 3,
-              restaurants_nearby: 28,
-              grocery_stores: 4,
-            },
-            transport: {
-              nearest_station: '0.3 miles',
-              bus_routes: 4,
-              walk_score: 78,
-              transit_score: 65,
-            },
-            safety: {
-              crime_index: 23,
-              safety_rating: 'B+',
-            },
-            market_trends: {
-              avg_price_sqft: 285,
-              yoy_appreciation: 4.2,
-              days_on_market: 21,
-              inventory_level: 'Low',
-            },
-          },
-        });
-      }
+      // Call the new Resilience API
+      const data = await predictResilience(postcode);
+      setPropertyData(data);
     } catch (error) {
       console.error('Error fetching prediction:', error);
-      // Use placeholder data on error
-      setPropertyData({
-        success: true,
-        address: location.address,
-        coordinates: { lat: location.lat, lng: location.lng },
-        prediction: {
-          predicted_price: 450000,
-          confidence: 0.85,
-          price_range: { low: 420000, high: 480000 },
-        },
-        area_data: {
-          demographics: {
-            population: 45000,
-            median_age: 34,
-            median_income: 65000,
-          },
-          amenities: {
-            schools_nearby: 5,
-            parks_nearby: 3,
-            restaurants_nearby: 28,
-            grocery_stores: 4,
-          },
-          transport: {
-            nearest_station: '0.3 miles',
-            bus_routes: 4,
-            walk_score: 78,
-            transit_score: 65,
-          },
-          safety: {
-            crime_index: 23,
-            safety_rating: 'B+',
-          },
-          market_trends: {
-            avg_price_sqft: 285,
-            yoy_appreciation: 4.2,
-            days_on_market: 21,
-            inventory_level: 'Low',
-          },
-        },
-      });
+      setPropertyData(null); // Or show error state
     } finally {
       setIsLoading(false);
     }
@@ -156,74 +87,54 @@ export default function Home() {
     try {
       // Fetch data for all locations
       const dataPromises = locations.map(async (location) => {
-        try {
-          const response = await fetch('/api/predict', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: location.address, lat: location.lat, lng: location.lng }),
-          });
-          if (response.ok) {
-            return await response.json();
+        const postcode = extractPostcode(location.address);
+        if (postcode) {
+          try {
+            return await predictResilience(postcode);
+          } catch (e) {
+            console.error('Error fetching data for', location.address);
           }
-        } catch (e) {
-          console.error('Error fetching data for', location.address);
         }
-        // Return placeholder data
-        return generatePlaceholderData(location);
+        return null;
       });
 
       const results = await Promise.all(dataPromises);
-      setComparisonData(results);
+      setComparisonData(results.map((r, i) => r || generatePlaceholderData(locations[i])));
     } catch (error) {
       console.error('Error comparing locations:', error);
-      // Generate placeholder data for all locations
-      setComparisonData(locations.map(loc => generatePlaceholderData(loc)));
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Generate placeholder data for a location
-  const generatePlaceholderData = (location: SavedLocation): PropertyData => ({
+  // Generate placeholder resilience data for a location (Fallback)
+  const generatePlaceholderData = (location: SavedLocation | { address: string, lat: number, lng: number }): any => ({
     success: true,
-    address: location.address,
-    coordinates: { lat: location.lat, lng: location.lng },
-    prediction: {
-      predicted_price: Math.floor(350000 + Math.random() * 300000),
-      confidence: 0.75 + Math.random() * 0.2,
-      price_range: { 
-        low: Math.floor(320000 + Math.random() * 200000), 
-        high: Math.floor(450000 + Math.random() * 300000) 
+    postcode: extractPostcode(location.address) || "UNKNOWN",
+    sector: "ESTIMATED",
+    current_valuation: {
+      value: Math.floor(450000 + Math.random() * 200000),
+      currency: "GBP",
+    },
+    forecasts: {
+      '1y': { growth_pct: 2.5, price_value: 461250, risk_penalty_pct: 0.5 },
+      '3y': { growth_pct: 8.4, price_value: 487800, risk_penalty_pct: 1.5 },
+      '5y': { growth_pct: 15.2, price_value: 518400, risk_penalty_pct: 2.5 },
+    },
+    resilience: {
+      score: 65,
+      label: "Medium",
+      components: {
+        stability: 60,
+        growth: 70,
+        flood_safety: 85,
+        crime_safety: 45,
       },
     },
-    area_data: {
-      demographics: {
-        population: Math.floor(30000 + Math.random() * 40000),
-        median_age: Math.floor(28 + Math.random() * 15),
-        median_income: Math.floor(45000 + Math.random() * 40000),
-      },
-      amenities: {
-        schools_nearby: Math.floor(2 + Math.random() * 8),
-        parks_nearby: Math.floor(1 + Math.random() * 6),
-        restaurants_nearby: Math.floor(10 + Math.random() * 40),
-        grocery_stores: Math.floor(2 + Math.random() * 6),
-      },
-      transport: {
-        nearest_station: `${(0.1 + Math.random() * 0.8).toFixed(1)} miles`,
-        bus_routes: Math.floor(2 + Math.random() * 8),
-        walk_score: Math.floor(50 + Math.random() * 45),
-        transit_score: Math.floor(40 + Math.random() * 50),
-      },
-      safety: {
-        crime_index: Math.floor(15 + Math.random() * 30),
-        safety_rating: ['A', 'A-', 'B+', 'B', 'B-'][Math.floor(Math.random() * 5)],
-      },
-      market_trends: {
-        avg_price_sqft: Math.floor(200 + Math.random() * 200),
-        yoy_appreciation: Number((2 + Math.random() * 6).toFixed(1)),
-        days_on_market: Math.floor(14 + Math.random() * 30),
-        inventory_level: ['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)],
-      },
+    risk_factors: {
+      flood_risk_level: "Low",
+      flood_risk_score: 0,
+      historical_volatility: 12.5,
     },
   });
 

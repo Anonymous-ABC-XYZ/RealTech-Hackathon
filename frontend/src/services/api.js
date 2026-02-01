@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,38 +10,18 @@ const api = axios.create({
 });
 
 /**
- * Get property price prediction for a location
- * @param {Object} location - Location object with address, lat, lng
- * @returns {Promise} API response with prediction data
+ * Get resilience and price prediction for a postcode
+ * @param {string} postcode - UK Postcode
+ * @returns {Promise} API response with resilience data
  */
-export const getPrediction = async (location) => {
+export const predictResilience = async (postcode) => {
   try {
-    const response = await api.post('/api/predict', {
-      address: location.address,
-      lat: location.lat,
-      lng: location.lng,
+    const response = await api.post('/api/predict_resilience', {
+      postcode: postcode
     });
     return response.data;
   } catch (error) {
-    console.error('Error getting prediction:', error);
-    throw error;
-  }
-};
-
-/**
- * Get area data for a specific location
- * @param {number} lat - Latitude
- * @param {number} lng - Longitude
- * @returns {Promise} API response with area data
- */
-export const getAreaData = async (lat, lng) => {
-  try {
-    const response = await api.get('/api/area-data', {
-      params: { lat, lng },
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error getting area data:', error);
+    console.error('Error predicting resilience:', error);
     throw error;
   }
 };
@@ -52,7 +32,7 @@ export const getAreaData = async (lat, lng) => {
  */
 export const healthCheck = async () => {
   try {
-    const response = await api.get('/api/health');
+    const response = await api.get('/health');
     return response.data;
   } catch (error) {
     console.error('API health check failed:', error);

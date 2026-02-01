@@ -22,6 +22,7 @@ from scraper.scansan_api import search_scansan
 
 import logging
 import re
+import pickle
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -35,11 +36,23 @@ logger = logging.getLogger(__name__)
 
 # Global Model Instance
 resilience_model = None
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'resilience_model.pkl')
 
 def train_model_on_startup():
-    """Train the future price predictor on startup using Enriched data"""
+    """Train or load the future price predictor"""
     global resilience_model
     try:
+        # 1. Try Loading Existing Model
+        if os.path.exists(MODEL_PATH):
+            logger.info(f"Loading pre-trained model from {MODEL_PATH}...")
+            try:
+                resilience_model = UKPropertyFuturePricePredictor.load(MODEL_PATH)
+                logger.info("Model loaded successfully!")
+                return
+            except Exception as e:
+                logger.warning(f"Failed to load model: {e}. Retraining...")
+
+        # 2. Train New Model
         logger.info("Initializing and training Future Price Predictor...")
         dataset_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'ml-dataset/kaggle_london_enriched.csv')
         
@@ -59,6 +72,10 @@ def train_model_on_startup():
         # Train
         resilience_model = UKPropertyFuturePricePredictor(parallel_training=True)
         resilience_model.fit(transactions_df, postcode_coords_df=None, val_size=0.1)
+        
+        # Save
+        logger.info(f"Saving model to {MODEL_PATH}...")
+        resilience_model.save(MODEL_PATH)
         logger.info("Future Price Predictor trained and ready!")
         
     except Exception as e:
@@ -148,7 +165,8 @@ def predict_resilience():
                 "flood_risk_level": flood_data.get('risk_level', 'Unknown'),
                 "historical_volatility": round(stats.get('volatility', 0) * 100, 2)
             },
-            "forecasts": forecast['forecasts']
+            "forecasts": forecast['forecasts'],
+            "resilience": forecast['resilience_score']
         })
 
     except Exception as e:

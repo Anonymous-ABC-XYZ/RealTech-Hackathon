@@ -17,6 +17,7 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from scipy.spatial import KDTree
 import warnings
 import os
+import pickle
 
 warnings.filterwarnings('ignore')
 
@@ -203,6 +204,7 @@ class UKPropertyFuturePricePredictor:
     def predict(self, current_price, input_features_df):
         """
         Predict future prices with Actuarial Risk Adjustment
+        AND calculate composite Resilience Score.
         """
         X_scaled = self.scaler.transform(input_features_df[self.feature_names])
         
@@ -212,27 +214,24 @@ class UKPropertyFuturePricePredictor:
         }
         
         # === ACTUARIAL LOGIC LAYER ===
-        # Ensure risks have a guaranteed negative impact on the forecast
         flood_val = input_features_df['flood_risk'].values[0]
         crime_val = input_features_df['crime_rate'].values[0]
+        volatility_val = input_features_df['volatility'].values[0]
         
-        # Penalties (Percentage points deducted from growth)
-        # Flood Score 0-10: Up to 1.5% penalty per year
+        # Penalties
         flood_penalty = (flood_val / 10.0) * 0.015 
-        
-        # Crime Score 0-10: Up to 1.0% penalty per year
         crime_penalty = (crime_val / 10.0) * 0.010
-        
         total_annual_penalty = flood_penalty + crime_penalty
         
+        growth_5y = 0.0
+        
         for horizon in self.horizons:
-            # 1. Get ML Prediction (Base Market Sentiment)
             pred_growth = self.models[horizon].predict(X_scaled)[0]
-            
-            # 2. Apply Risk Penalty (Compound over horizon)
-            # We treat the penalty as an annual drag on growth
             penalty_factor = total_annual_penalty * horizon
             adjusted_growth = pred_growth - penalty_factor
+            
+            if horizon == 5:
+                growth_5y = adjusted_growth
             
             future_price = current_price * (1 + adjusted_growth)
             
@@ -242,10 +241,63 @@ class UKPropertyFuturePricePredictor:
                 "risk_penalty_pct": round(penalty_factor * 100, 2)
             }
             
+        # === RESILIENCE SCORE CALCULATION ===
+        # 1. Stability (Inverse of Volatility)
+        # Observed volatility range: 0.2 to 1.0+
+        # Score 100 if vol<=0.2, Score 0 if vol >= 1.0
+        stability_score = max(0, min(100, 100 - ((volatility_val - 0.2) * 125)))
+        
+        # 2. Growth Potential (5y Forecast)
+        # Score 100 if growth >= 20%, Score 0 if growth <= -10%
+        growth_score = max(0, min(100, (growth_5y + 0.1) * 333))
+        
+        # 3. Flood Safety
+        flood_safety = max(0, 100 - (flood_val * 10))
+        
+        # 4. Crime Safety
+        crime_safety = max(0, 100 - (crime_val * 10))
+        
+        # Weighted Average
+        raw_resilience = (
+            0.35 * stability_score +
+            0.25 * growth_score +
+            0.20 * flood_safety +
+            0.20 * crime_safety
+        )
+        
+        resilience_score = int(round(raw_resilience))
+        
+        # Label
+        if resilience_score >= 75: label = "High"
+        elif resilience_score >= 50: label = "Medium"
+        else: label = "Low"
+        
+        results["resilience_score"] = {
+            "score": resilience_score,
+            "label": label,
+            "components": {
+                "stability": int(stability_score),
+                "growth": int(growth_score),
+                "flood_safety": int(flood_safety),
+                "crime_safety": int(crime_safety)
+            }
+        }
+            
         return results
 
     def get_sector_stats(self, sector):
         return self.sector_stats_lookup.get(sector, self.default_stats)
+
+    def save(self, filepath):
+        """Save trained model to disk"""
+        with open(filepath, 'wb') as f:
+            pickle.dump(self, f)
+            
+    @staticmethod
+    def load(filepath):
+        """Load trained model from disk"""
+        with open(filepath, 'rb') as f:
+            return pickle.load(f)
 
 def load_kaggle_data(filepath):
     try:
