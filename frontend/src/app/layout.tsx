@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'PinPoint Property - Property Price Prediction',
-  description: 'AI-powered property price predictions with real-time market insights',
+  description: 'ML-powered property price predictions with real-time market insights',
 };
 
 export default function RootLayout({

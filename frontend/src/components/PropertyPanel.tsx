@@ -295,11 +295,11 @@ export default function PropertyPanel({
             <p className="text-[10px] text-right font-medium text-muted-foreground">{resilience.components.flood_safety}/100 Safety Score</p>
           </div>
 
-          {/* Crime Safety */}
+          {/* Crime */}
           <div className="p-4 bg-card rounded-lg border shadow-sm hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-3">
               <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5" /> Crime Safety
+                <Lock className="w-3.5 h-3.5" /> Crime
               </span>
               <Badge variant={resilience.components.crime_safety >= 70 ? 'outline' : resilience.components.crime_safety >= 40 ? 'secondary' : 'destructive'} className="text-[10px] px-1.5 h-5">
                 {resilience.components.crime_safety >= 70 ? 'Low' : resilience.components.crime_safety >= 40 ? 'Medium' : 'High'}

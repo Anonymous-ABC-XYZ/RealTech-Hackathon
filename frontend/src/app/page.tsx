@@ -154,7 +154,7 @@ export default function Home() {
             PinPoint <span className="text-muted-foreground/50">Property.</span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-            Instant, AI-powered valuation and hyper-local insights for any property.
+            Instant, ML-powered valuation and hyper-local insights for any property.
             Just select a location on the map.
           </p>
         </section>
