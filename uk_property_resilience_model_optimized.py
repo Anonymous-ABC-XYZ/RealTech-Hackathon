@@ -261,25 +261,52 @@ class UKPropertyResiliencePredictor:
         target_idx = target_idx[0]
         target_coord = self.postcode_coords[target_idx:target_idx+1]
         
-        # Find neighbors
+        # Find neighbors (k+1 because query includes the point itself)
         distances, indices = self.spatial_tree.query(
             target_coord, k=self.n_spatial_neighbors + 1
         )
         
+        # Exclude self (first result)
         neighbor_indices = indices[0][1:]
         neighbor_distances = distances[0][1:]
         neighbor_sectors = self.postcode_sectors[neighbor_indices]
         
+        # Filter for neighbors that actually exist in our stats DataFrame
+        # (Some might have been filtered out due to low transaction counts)
+        valid_neighbors_mask = []
+        valid_neighbor_sectors = []
+        
+        existing_sectors = set(sector_stats_df['postcode_sector'].values)
+        
+        for i, sector in enumerate(neighbor_sectors):
+            if sector in existing_sectors:
+                valid_neighbors_mask.append(i)
+                valid_neighbor_sectors.append(sector)
+        
+        if not valid_neighbor_sectors:
+            return self._get_default_spatial_lag_features()
+            
+        # Filter distances and stats
+        valid_distances = neighbor_distances[valid_neighbors_mask]
         neighbor_stats = sector_stats_df[
-            sector_stats_df['postcode_sector'].isin(neighbor_sectors)
+            sector_stats_df['postcode_sector'].isin(valid_neighbor_sectors)
         ]
         
-        if len(neighbor_stats) == 0:
-            return self._get_default_spatial_lag_features()
+        # Ensure we align weights with the stats rows
+        # We need to map the stats back to the distance/weight order or vice-versa
+        # Simpler: create a mapping from sector -> distance
+        sector_to_dist = dict(zip(valid_neighbor_sectors, valid_distances))
+        
+        # Extract aligned values
+        stats_values = neighbor_stats.set_index('postcode_sector')
+        aligned_distances = np.array([sector_to_dist[s] for s in stats_values.index])
         
         # Distance-weighted features
-        weights = 1 / (neighbor_distances + 0.1)
-        weights = weights / weights.sum()
+        weights = 1 / (aligned_distances + 0.1) # Avoid div by zero
+        if weights.sum() > 0:
+            weights = weights / weights.sum()
+        else:
+            return self._get_default_spatial_lag_features()
         
         key_features = [
             'median_price', 'price_growth_1yr', 'price_volatility',
@@ -287,12 +314,12 @@ class UKPropertyResiliencePredictor:
         ]
         
         for feature in key_features:
-            if feature in neighbor_stats.columns:
-                values = neighbor_stats[feature].values[:len(weights)]
+            if feature in stats_values.columns:
+                values = stats_values[feature].values
                 features[f'spatial_lag_{feature}'] = np.average(values, weights=weights)
                 features[f'spatial_std_{feature}'] = np.std(values)
         
-        features['avg_neighbor_distance_km'] = np.mean(neighbor_distances) * 111
+        features['avg_neighbor_distance_km'] = np.mean(aligned_distances) * 111
         
         return features
     
@@ -847,67 +874,88 @@ class UKPropertyResiliencePredictor:
         return sorted_features
 
 
+def load_kaggle_data(filepath):
+    """
+    Load and preprocess Kaggle London House Price dataset
+    
+    Extracts two transaction points per property:
+    1. Historical sale (from history_price/date)
+    2. Recent sale (inferred from estimate - change)
+    """
+    print(f"\nLoading real dataset from {filepath}...")
+    try:
+        df = pd.read_csv(filepath)
+    except Exception as e:
+        print(f"Error loading file: {e}")
+        return None, None
+
+    # --- 1. Extract Postcode Coordinates ---
+    print("✓ Extracting coordinate data...")
+    # Create sector column for aggregation
+    df['postcode_sector'] = df['postcode'].apply(lambda x: str(x).split(' ')[0] + ' ' + str(x).split(' ')[1][0] if isinstance(x, str) and ' ' in x else None)
+    
+    # Get unique coordinates per sector (taking the mean if multiple exist)
+    coords_df = df.groupby('postcode_sector')[['latitude', 'longitude']].mean().reset_index()
+    
+    # --- 2. Construct Transactions DataFrame ---
+    print("✓ Constructing transaction history...")
+    
+    # Set A: Historical Transactions
+    df_hist = df[['history_price', 'history_date', 'propertyType', 'tenure', 'postcode', 'outcode', 'is_new_build']].copy() if 'is_new_build' in df.columns else df[['history_price', 'history_date', 'propertyType', 'tenure', 'postcode', 'outcode']].copy()
+    df_hist.rename(columns={'history_price': 'price', 'history_date': 'date', 'propertyType': 'property_type', 'outcode': 'district'}, inplace=True)
+    df_hist['new_build'] = False # Assume old history is not "new build" for our resilience purpose (or unknown)
+    
+    # Set B: Recent Transactions (Inferred)
+    # Price = Current Estimate - Value Change (approximate purchase price)
+    # This relies on valueChange being (Current - Purchase)
+    df_recent = df[['saleEstimate_currentPrice', 'saleEstimate_valueChange.numericChange', 'saleEstimate_valueChange.saleDate', 'propertyType', 'tenure', 'postcode', 'outcode']].copy()
+    
+    # Calculate approximate purchase price
+    df_recent['price'] = df_recent['saleEstimate_currentPrice'] - df_recent['saleEstimate_valueChange.numericChange']
+    df_recent.rename(columns={'saleEstimate_valueChange.saleDate': 'date', 'propertyType': 'property_type', 'outcode': 'district'}, inplace=True)
+    df_recent['new_build'] = False # Unknown
+    
+    # Select common columns
+    cols = ['price', 'date', 'property_type', 'new_build', 'tenure', 'postcode', 'district']
+    
+    # Combine and clean
+    transactions_df = pd.concat([
+        df_hist[cols], 
+        df_recent[cols]
+    ], ignore_index=True)
+    
+    # Drop invalid rows
+    transactions_df.dropna(subset=['price', 'date', 'postcode'], inplace=True)
+    transactions_df = transactions_df[transactions_df['price'] > 1000] # Remove anomalies
+    
+    print(f"✓ Loaded {len(transactions_df)} transactions from {len(df)} properties")
+    
+    return transactions_df, coords_df
+
 def main():
-    """Demonstration with synthetic UK property data"""
-    print("UK Property Resilience Predictor - Demo")
+    """Run model with real Kaggle data"""
+    print("UK Property Resilience Predictor - Real Data Mode")
     print("="*70)
     
-    # Generate synthetic Land Registry data
-    np.random.seed(42)
-    n_transactions = 5000
+    # Path to dataset
+    dataset_path = 'ml-dataset/kaggle_london_house_price_data.csv'
     
-    property_types = ['Flat-maisonette', 'Terraced', 'Semi-detached', 'Detached']
-    tenures = ['Freehold', 'Leasehold']
-    districts = ['KENSINGTON AND CHELSEA', 'WESTMINSTER', 'CAMDEN']
+    # Load Real Data
+    transactions_df, postcode_coords_df = load_kaggle_data(dataset_path)
     
-    # Postcode sectors
-    postcode_sectors = [f'SW{i} {j}' for i in range(1, 11) for j in range(1, 10)]
-    postcode_sectors += [f'W{i} {j}' for i in range(1, 6) for j in range(1, 10)]
-    
-    transactions_data = []
-    
-    for i in range(n_transactions):
-        sector = np.random.choice(postcode_sectors)
-        base_price = np.random.uniform(200000, 1000000)
-        
-        year = np.random.randint(2015, 2024)
-        month = np.random.randint(1, 13)
-        day = np.random.randint(1, 28)
-        
-        months = ['January', 'February', 'March', 'April', 'May', 'June',
-                 'July', 'August', 'September', 'October', 'November', 'December']
-        date = f"{day} {months[month-1]} {year}"
-        
-        transactions_data.append({
-            'price': int(base_price * (1 + (year - 2015) * 0.05)),
-            'date': date,
-            'property_type': np.random.choice(property_types),
-            'new_build': np.random.choice([True, False], p=[0.1, 0.9]),
-            'tenure': np.random.choice(tenures, p=[0.6, 0.4]),
-            'postcode': f"{sector}PH",
-            'district': np.random.choice(districts)
-        })
-    
-    transactions_df = pd.DataFrame(transactions_data)
-    
-    # Postcode coordinates
-    postcode_coords_data = []
-    for sector in postcode_sectors[:100]:
-        postcode_coords_data.append({
-            'postcode_sector': sector,
-            'latitude': 51.5 + np.random.uniform(-0.1, 0.1),
-            'longitude': -0.1 + np.random.uniform(-0.1, 0.1)
-        })
-    
-    postcode_coords_df = pd.DataFrame(postcode_coords_data)
-    
+    if transactions_df is None:
+        print("Failed to load dataset. Exiting.")
+        return
+
     # Train model
     model = UKPropertyResiliencePredictor(
         n_spatial_neighbors=5,
         quantiles=[0.1, 0.5, 0.9],
-        use_stacking=True
+        use_stacking=True,
+        parallel_training=True
     )
     
+    # Fit model
     model.fit(transactions_df, postcode_coords_df, val_size=0.2)
     
     # Feature importances

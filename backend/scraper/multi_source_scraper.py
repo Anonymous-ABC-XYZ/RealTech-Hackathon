@@ -8,24 +8,18 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import json
 
-from .rightmove_scraper import scrape_property as scrape_rightmove
-from .zoopla_scraper import search_zoopla
-from .onthemarket_scraper import search_onthemarket
 from .land_registry_scraper import search_land_registry
 
 
 class MultiSourcePropertyScraper:
     """
     Aggregates property data from multiple sources for maximum reliability.
-    Sources: Land Registry (Gov), Zoopla, OnTheMarket, Rightmove
+    Sources: Land Registry (Gov)
     """
     
     def __init__(self):
         self.sources = {
-            'land_registry': search_land_registry,
-            'zoopla': search_zoopla,
-            'onthemarket': search_onthemarket,
-            'rightmove': scrape_rightmove
+            'land_registry': search_land_registry
         }
     
     def search_all_sources(self, address: str, postcode: str = None) -> Dict:
@@ -49,10 +43,6 @@ class MultiSourcePropertyScraper:
             if postcode:
                 futures['land_registry'] = executor.submit(search_land_registry, postcode)
             
-            futures['zoopla'] = executor.submit(search_zoopla, address)
-            futures['onthemarket'] = executor.submit(search_onthemarket, address)
-            futures['rightmove'] = executor.submit(scrape_rightmove, address)
-            
             # Collect results
             for source, future in futures.items():
                 try:
@@ -71,7 +61,7 @@ class MultiSourcePropertyScraper:
     def search_priority_sources(self, address: str, postcode: str = None) -> Dict:
         """
         Search sources in priority order, return first successful result.
-        Priority: Land Registry > Zoopla > OnTheMarket > Rightmove
+        Priority: Land Registry
         
         Args:
             address: Full UK property address
@@ -85,21 +75,6 @@ class MultiSourcePropertyScraper:
             result = search_land_registry(postcode)
             if result.get("success"):
                 return result
-        
-        # Try Zoopla (major portal)
-        result = search_zoopla(address)
-        if result.get("success"):
-            return result
-        
-        # Try OnTheMarket
-        result = search_onthemarket(address)
-        if result.get("success"):
-            return result
-        
-        # Try Rightmove as fallback
-        result = scrape_rightmove(address)
-        if result.get("success"):
-            return result
         
         # All failed
         return {
@@ -140,14 +115,6 @@ class MultiSourcePropertyScraper:
         
         aggregated["success"] = True
         
-        # Aggregate current price (prefer Zoopla/OnTheMarket for current listings)
-        for source in ['zoopla', 'onthemarket', 'rightmove']:
-            if source in successful and successful[source].get("current_price"):
-                aggregated["data"]["current_price"] = successful[source]["current_price"]
-                aggregated["data"]["current_price_source"] = source
-                aggregated["data"]["current_listing"] = True
-                break
-        
         # Aggregate last sale data (prefer Land Registry - official data)
         if 'land_registry' in successful:
             lr_data = successful['land_registry']
@@ -155,50 +122,6 @@ class MultiSourcePropertyScraper:
             aggregated["data"]["last_sale_date"] = lr_data.get("last_sale_date")
             aggregated["data"]["sale_history"] = lr_data.get("sale_history", [])
             aggregated["data"]["sale_history_source"] = "Land Registry (Official)"
-        else:
-            # Fallback to other sources for sale history
-            for source in ['zoopla', 'rightmove', 'onthemarket']:
-                if source in successful and successful[source].get("last_sale_price"):
-                    aggregated["data"]["last_sale_price"] = successful[source]["last_sale_price"]
-                    aggregated["data"]["last_sale_date"] = successful[source]["last_sale_date"]
-                    aggregated["data"]["sale_history"] = successful[source].get("sale_history", [])
-                    aggregated["data"]["sale_history_source"] = source
-                    break
-        
-        # Aggregate property details (cross-validate from multiple sources)
-        property_types = []
-        tenures = []
-        bedrooms = []
-        
-        for source, result in successful.items():
-            if result.get("property_type"):
-                property_types.append(result["property_type"])
-            if result.get("tenure"):
-                tenures.append(result["tenure"])
-            if result.get("bedrooms"):
-                bedrooms.append(result["bedrooms"])
-        
-        # Use most common value or first available
-        if property_types:
-            aggregated["data"]["property_type"] = self._most_common(property_types)
-        if tenures:
-            aggregated["data"]["tenure"] = self._most_common(tenures)
-        if bedrooms:
-            aggregated["data"]["bedrooms"] = self._most_common(bedrooms)
-        
-        # Aggregate other details from best source
-        best_source = None
-        if 'zoopla' in successful:
-            best_source = successful['zoopla']
-        elif 'onthemarket' in successful:
-            best_source = successful['onthemarket']
-        elif 'rightmove' in successful:
-            best_source = successful['rightmove']
-        
-        if best_source:
-            for key in ['agent', 'features', 'description', 'listing_url', 'added_on']:
-                if best_source.get(key):
-                    aggregated["data"][key] = best_source[key]
         
         # Include all raw source data for transparency
         aggregated["raw_sources"] = successful
